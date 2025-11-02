@@ -7,5 +7,6 @@ data class UrlEntry(
 
 enum class ContentType {
     GAME,
-    MISCELLANEOUS
+    MISCELLANEOUS,
+    RA
 }

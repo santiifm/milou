@@ -5,6 +5,10 @@
         {
           "url": "https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Game%20Boy%20Advance/",
           "contentType": "GAME"
+        },
+        {
+          "url": "https://myrient.erista.me/files/RetroAchievements/RA%20-%20Nintendo%20Game%20Boy%20Advance/",
+          "contentType": "RA"
         }
       ]
     },
@@ -13,6 +17,10 @@
         {
           "url": "https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Game%20Boy%20Color/",
           "contentType": "GAME"
+        },
+        {
+          "url": "https://myrient.erista.me/files/RetroAchievements/RA%20-%20Nintendo%20Game%20Boy%20Color/",
+          "contentType": "RA"
         }
       ]
     },
@@ -21,6 +29,10 @@
         {
           "url": "https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Game%20Boy/",
           "contentType": "GAME"
+        },
+        {
+          "url": "https://myrient.erista.me/files/RetroAchievements/RA%20-%20Nintendo%20Game%20Boy/",
+          "contentType": "RA"
         }
       ]
     },
@@ -29,6 +41,10 @@
         {
           "url": "https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Super%20Nintendo%20Entertainment%20System/",
           "contentType": "GAME"
+        },
+        {
+          "url": "https://myrient.erista.me/files/RetroAchievements/RA%20-%20Super%20Nintendo%20Entertainment%20System/",
+          "contentType": "RA"
         }
       ]
     },
@@ -37,6 +53,10 @@
         {
           "url": "https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%2064%20(BigEndian)/",
           "contentType": "GAME"
+        },
+        {
+          "url": "https://myrient.erista.me/files/RetroAchievements/RA%20-%20Nintendo%2064/",
+          "contentType": "RA"
         }
       ]
     },
@@ -45,6 +65,10 @@
         {
           "url": "https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%20Entertainment%20System%20(Headered)/",
           "contentType": "GAME"
+        },
+        {
+          "url": "https://myrient.erista.me/files/RetroAchievements/RA%20-%20Nintendo%20Entertainment%20System/",
+          "contentType": "RA"
         }
       ]
     },
@@ -57,6 +81,10 @@
         {
           "url": "https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%20DS%20(Download%20Play)/",
           "contentType": "MISCELLANEOUS"
+        },
+        {
+          "url": "https://myrient.erista.me/files/RetroAchievements/RA%20-%20Nintendo%20DS/",
+          "contentType": "RA"
         }
       ]
     },
@@ -77,6 +105,10 @@
         {
           "url": "https://myrient.erista.me/files/Redump/Nintendo%20-%20GameCube%20-%20NKit%20RVZ%20[zstd-19-128k]/",
           "contentType": "GAME"
+        },
+        {
+          "url": "https://myrient.erista.me/files/RetroAchievements/RA%20-%20Nintendo%20GameCube/",
+          "contentType": "RA"
         }
       ]
     },
@@ -119,6 +151,10 @@
         {
           "url": "https://myrient.erista.me/files/Internet%20Archive/storage_manager/PSP-DLC/%5BNo-Intro%5D%20PSP%20DLC/",
           "contentType": "MISCELLANEOUS"
+        },
+        {
+          "url": "https://myrient.erista.me/files/RetroAchievements/RA%20-%20Sony%20PSP/",
+          "contentType": "RA"
         }
       ]
     },
@@ -127,6 +163,10 @@
         {
           "url": "https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation%202/",
           "contentType": "GAME"
+        },
+        {
+          "url": "https://myrient.erista.me/files/RetroAchievements/RA%20-%20Sony%20Playstation%202/",
+          "contentType": "RA"
         }
       ]
     },
@@ -135,6 +175,10 @@
         {
           "url": "https://myrient.erista.me/files/Redump/Sony%20-%20PlayStation/",
           "contentType": "GAME"
+        },
+        {
+          "url": "https://myrient.erista.me/files/RetroAchievements/RA%20-%20Sony%20Playstation/",
+          "contentType": "RA"
         }
       ]
     },
@@ -171,6 +215,10 @@
         {
           "url": "https://myrient.erista.me/files/No-Intro/Sega%20-%2032X/",
           "contentType": "GAME"
+        },
+        {
+          "url": "https://myrient.erista.me/files/RetroAchievements/RA%20-%20Sega%2032X/",
+          "contentType": "RA"
         }
       ]
     },
@@ -179,6 +227,10 @@
         {
           "url": "https://myrient.erista.me/files/No-Intro/Sega%20-%20Game%20Gear/",
           "contentType": "GAME"
+        },
+        {
+          "url": "https://myrient.erista.me/files/RetroAchievements/RA%20-%20Sega%20Game%20Gear/",
+          "contentType": "RA"
         }
       ]
     },
@@ -187,6 +239,10 @@
         {
           "url": "https://myrient.erista.me/files/No-Intro/Sega%20-%20Master%20System%20-%20Mark%20III/",
           "contentType": "GAME"
+        },
+        {
+          "url": "https://myrient.erista.me/files/RetroAchievements/RA%20-%20Sega%20Master%20System/",
+          "contentType": "RA"
         }
       ]
     },
@@ -195,6 +251,10 @@
         {
           "url": "https://myrient.erista.me/files/No-Intro/Sega%20-%20Mega%20Drive%20-%20Genesis/",
           "contentType": "GAME"
+        },
+        {
+          "url": "https://myrient.erista.me/files/RetroAchievements/RA%20-%20Sega%20Genesis/",
+          "contentType": "RA"
         }
       ]
     },
@@ -207,6 +267,10 @@
         {
           "url": "https://myrient.erista.me/files/Internet%20Archive/kodi_amp_spmc_canada/DreamcastCollectionByGhostwareMulti-region/",
           "contentType": "GAME"
+        },
+        {
+          "url": "https://myrient.erista.me/files/RetroAchievements/RA%20-%20Sega%20Dreamcast/",
+          "contentType": "RA"
         }
       ]
     },
@@ -227,6 +291,10 @@
         {
           "url": "https://myrient.erista.me/files/Internet%20Archive/chadmaster/chd_saturn/CHD-Saturn/Improvements/",
           "contentType": "MISCELLANEOUS"
+        },
+        {
+          "url": "https://myrient.erista.me/files/RetroAchievements/RA%20-%20Sega%20Saturn/",
+          "contentType": "RA"
         }
       ]
     },
@@ -239,6 +307,10 @@
         {
           "url": "https://myrient.erista.me/files/Internet%20Archive/chadmaster/chd_segacd/CHD-MegaCD-PAL/",
           "contentType": "GAME"
+        },
+        {
+          "url": "https://myrient.erista.me/files/RetroAchievements/RA%20-%20Sega%20CD/",
+          "contentType": "RA"
         }
       ]
     }

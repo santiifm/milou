@@ -46,7 +46,7 @@ object Constants {
         // Content Types
         val CONTENT_TYPES = setOf(
             "DLC", "UPDATE", "TITLE UPDATE", "PATCH", "DEMO", "BETA", "PROTO",
-            "PIRATE", "KIOSK", "GAME", "MISCELLANEOUS", "DEBUG"
+            "PIRATE", "KIOSK", "GAME", "MISCELLANEOUS", "DEBUG", "RA"
         )
 
         // Regions

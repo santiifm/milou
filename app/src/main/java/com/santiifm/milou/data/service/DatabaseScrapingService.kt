@@ -114,10 +114,14 @@ class DatabaseScrapingService @Inject constructor(
                     // Add content type tag
                     val contentTypeTag = FileTagEntity(
                         fileId = fileEntity.id,
-                        tag = contentType.name.lowercase()
+                        tag = if (contentType == com.santiifm.milou.data.model.ContentType.RA) {
+                            contentType.name
+                        } else {
+                            contentType.name.lowercase()
+                        }
                     )
                     val allTagEntities = tagEntities + contentTypeTag
-                    
+
                     allFiles.add(fileEntity)
                     allTags.add(Pair(fileEntity, allTagEntities))
                 }
