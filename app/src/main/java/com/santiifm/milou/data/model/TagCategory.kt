@@ -26,12 +26,12 @@ object TagCategorizer {
         
         tags.forEach { tag ->
             val cleanTag = tag.trim().uppercase()
-            
+
             when {
                 isRegion(cleanTag) -> regions.add(tag)
-                isLanguage(cleanTag) -> languages.add(tag)
                 isVideoStandard(cleanTag) -> videoStandards.add(tag)
                 isContentType(cleanTag) -> contentTypes.add(tag)
+                isLanguage(cleanTag) -> languages.add(tag)
                 isFileType(cleanTag) -> fileTypes.add(tag)
             }
         }
