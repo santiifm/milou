@@ -63,6 +63,10 @@
     "nintendo_3ds": {
       "urls": [
         {
+          "url": "https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Nintendo%203DS%20(Decrypted)/",
+          "contentType": "GAME"
+        },
+        {
           "url": "https://myrient.erista.me/files/No-Intro/Unofficial%20-%20Nintendo%20-%20Nintendo%203DS%20(Digital)%20(Updates%20and%20DLC)%20(Decrypted)/",
           "contentType": "MISCELLANEOUS"
         },
