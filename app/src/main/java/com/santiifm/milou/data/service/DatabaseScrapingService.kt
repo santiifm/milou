@@ -114,8 +114,8 @@ class DatabaseScrapingService @Inject constructor(
                     // Add content type tag
                     val contentTypeTag = FileTagEntity(
                         fileId = fileEntity.id,
-                        tag = if (contentType == com.santiifm.milou.data.model.ContentType.RA) {
-                            contentType.name
+                        tag = if (contentType == com.santiifm.milou.data.model.ContentType.RETROACHIEVEMENTS) {
+                            "RetroAchievements"
                         } else {
                             contentType.name.lowercase()
                         }

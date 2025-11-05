@@ -8,5 +8,5 @@ data class UrlEntry(
 enum class ContentType {
     GAME,
     MISCELLANEOUS,
-    RA
+    RETROACHIEVEMENTS
 }
