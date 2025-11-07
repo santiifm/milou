@@ -111,13 +111,12 @@ class DatabaseScrapingService @Inject constructor(
                 val (fileEntity, tagEntities) = FileParsingUtils.parseFileFromRow(row, baseUrl, consoleId)
                 
                 if (fileEntity != null) {
-                    // Add content type tag
                     val contentTypeTag = FileTagEntity(
                         fileId = fileEntity.id,
-                        tag = contentType.name.lowercase()
+                        tag = FileParsingUtils.normalizeTag(contentType.name)
                     )
                     val allTagEntities = tagEntities + contentTypeTag
-                    
+
                     allFiles.add(fileEntity)
                     allTags.add(Pair(fileEntity, allTagEntities))
                 }
