@@ -96,9 +96,16 @@ object FileParsingUtils {
 
     fun normalizeTag(tag: String): String {
         val trimmed = tag.trim()
-        if (trimmed.length <= 3) {
-            return trimmed.uppercase()
+        val upper = trimmed.uppercase()
+
+        if (upper in Constants.Tags.VIDEO_STANDARDS) {
+            return upper
         }
+
+        if (trimmed.length <= 3) {
+            return upper
+        }
+
         return trimmed.lowercase().replaceFirstChar { it.uppercase() }
     }
     

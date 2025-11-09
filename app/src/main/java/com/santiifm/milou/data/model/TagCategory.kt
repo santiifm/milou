@@ -25,14 +25,12 @@ object TagCategorizer {
         val fileTypes = mutableListOf<String>()
         
         tags.forEach { tag ->
-            val cleanTag = tag.trim().uppercase()
-            
             when {
-                isRegion(cleanTag) -> regions.add(tag)
-                isLanguage(cleanTag) -> languages.add(tag)
-                isVideoStandard(cleanTag) -> videoStandards.add(tag)
-                isContentType(cleanTag) -> contentTypes.add(tag)
-                isFileType(cleanTag) -> fileTypes.add(tag)
+                isVideoStandard(tag) -> videoStandards.add(tag)
+                isContentType(tag) -> contentTypes.add(tag)
+                isRegion(tag) -> regions.add(tag)
+                isLanguage(tag) -> languages.add(tag)
+                isFileType(tag) -> fileTypes.add(tag)
             }
         }
         
@@ -46,22 +44,22 @@ object TagCategorizer {
     }
     
     private fun isRegion(tag: String): Boolean {
-        return tag in Constants.Tags.ALL_REGIONS
+        return tag.uppercase() in Constants.Tags.ALL_REGIONS
     }
-    
+
     private fun isLanguage(tag: String): Boolean {
-        return tag.matches(Regex("^[A-Z]{2,3}$"))
+        return tag.uppercase().matches(Regex("^[A-Z]{2,3}$"))
     }
-    
+
     private fun isVideoStandard(tag: String): Boolean {
-        return tag in Constants.Tags.VIDEO_STANDARDS
+        return tag.uppercase() in Constants.Tags.VIDEO_STANDARDS
     }
-    
+
     private fun isContentType(tag: String): Boolean {
-        return tag in Constants.Tags.CONTENT_TYPES
+        return tag.uppercase() in Constants.Tags.CONTENT_TYPES
     }
-    
+
     private fun isFileType(tag: String): Boolean {
-        return tag.matches(Constants.Tags.FILE_EXTENSION_PATTERN)
+        return tag.uppercase().matches(Constants.Tags.FILE_EXTENSION_PATTERN)
     }
 }
