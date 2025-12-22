@@ -51,11 +51,11 @@ fun MilouFAB(
     val fabSize = 64.dp
     val expandedFabWidth by animateDpAsState(
         targetValue = if (isExpanded) 200.dp else fabSize,
-        animationSpec = spring(dampingRatio = 3f)
+        animationSpec = spring(dampingRatio = 1f)
     )
     val expandedFabHeight by animateDpAsState(
         targetValue = if (isExpanded) 58.dp else fabSize,
-        animationSpec = spring(dampingRatio = 3f)
+        animationSpec = spring(dampingRatio = 1f)
     )
 
     Column {
@@ -66,7 +66,7 @@ fun MilouFAB(
                     width = expandedFabWidth,
                     height = animateDpAsState(
                         if (isExpanded) 225.dp else 0.dp,
-                        animationSpec = spring(dampingRatio = 4f)
+                        animationSpec = spring(dampingRatio = 1f)
                     ).value
                 )
                 .background(
