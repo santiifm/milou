@@ -58,7 +58,7 @@ object FileParsingUtils {
             
             for (value in values) {
                 if (isValidTag(value)) {
-                    tags.add(value)
+                    tags.add(normalizeTag(value))
                 }
             }
             
@@ -74,24 +74,39 @@ object FileParsingUtils {
     
     fun isValidTag(tag: String): Boolean {
         if (tag.length < 2) return false
-        
+
         val cleanTag = tag.trim().uppercase()
-        
+
         if (cleanTag in Constants.Tags.VIDEO_STANDARDS) return true
-        
+
         if (cleanTag in Constants.Tags.CONTENT_TYPES) return true
-        
+
         if (cleanTag.matches(Constants.Tags.LANGUAGE_CODE_PATTERN)) return true
-        
+
         if (cleanTag.matches(Constants.Tags.VERSION_PATTERN)) return true
-        
+
         if (cleanTag in Constants.Tags.ALL_REGIONS) return true
 
         for (matcher in Constants.Tags.PARTIAL_MATCHERS) {
             if (cleanTag.contains(matcher)) return true
         }
-        
+
         return false
+    }
+
+    fun normalizeTag(tag: String): String {
+        val trimmed = tag.trim()
+        val upper = trimmed.uppercase()
+
+        if (upper in Constants.Tags.VIDEO_STANDARDS) {
+            return upper
+        }
+
+        if (trimmed.length <= 3) {
+            return upper
+        }
+
+        return trimmed.lowercase().replaceFirstChar { it.uppercase() }
     }
     
     fun decodeUrlEncodedFileName(fileName: String): String {

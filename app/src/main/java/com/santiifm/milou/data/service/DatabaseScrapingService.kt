@@ -111,14 +111,9 @@ class DatabaseScrapingService @Inject constructor(
                 val (fileEntity, tagEntities) = FileParsingUtils.parseFileFromRow(row, baseUrl, consoleId)
                 
                 if (fileEntity != null) {
-                    // Add content type tag
                     val contentTypeTag = FileTagEntity(
                         fileId = fileEntity.id,
-                        tag = if (contentType == com.santiifm.milou.data.model.ContentType.RETROACHIEVEMENTS) {
-                            "RetroAchievements"
-                        } else {
-                            contentType.name.lowercase()
-                        }
+                        tag = FileParsingUtils.normalizeTag(contentType.name)
                     )
                     val allTagEntities = tagEntities + contentTypeTag
 
