@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.santiifm.milou.util.Constants
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -22,6 +23,7 @@ object SettingsKeys {
     val LIMIT_SPEED = floatPreferencesKey("limit_speed")
     val AUTO_UNZIP = booleanPreferencesKey("auto_unzip")
     val CONCURRENT_DOWNLOADS = intPreferencesKey("concurrent_downloads")
+    val CONSOLE_DOWNLOAD_DIRECTORIES = stringSetPreferencesKey("console_download_directories")
 }
 
 @Singleton
@@ -43,10 +45,26 @@ class SettingsDataStore @Inject constructor(
     val concurrentDownloads: Flow<Int> = context.dataStore.data.map { 
         it[SettingsKeys.CONCURRENT_DOWNLOADS] ?: Constants.DEFAULT_CONCURRENT_DOWNLOADS 
     }
+    val consoleDownloadDirectories: Flow<Map<String, String>> = context.dataStore.data.map { preferences ->
+        (preferences[SettingsKeys.CONSOLE_DOWNLOAD_DIRECTORIES] ?: emptySet()).associate {
+            val (key, value) = it.split(":", limit = 2)
+            key to value
+        }
+    }
 
     suspend fun updateDownloadDirectory(path: String) = context.dataStore.edit { it[SettingsKeys.DOWNLOAD_DIRECTORY] = path }
     suspend fun setSeparateByConsole(enabled: Boolean) = context.dataStore.edit { it[SettingsKeys.SEPARATE_BY_CONSOLE] = enabled }
     suspend fun setLimitSpeed(limit: Float) = context.dataStore.edit { it[SettingsKeys.LIMIT_SPEED] = limit}
     suspend fun setAutoUnzip(enabled: Boolean) = context.dataStore.edit { it[SettingsKeys.AUTO_UNZIP] = enabled }
     suspend fun setConcurrentDownloads(count: Int) = context.dataStore.edit { it[SettingsKeys.CONCURRENT_DOWNLOADS] = count }
+    suspend fun updateConsoleDownloadDirectory(consoleId: String, path: String) {
+        context.dataStore.edit { settings ->
+            val currentDirs = settings[SettingsKeys.CONSOLE_DOWNLOAD_DIRECTORIES] ?: emptySet()
+            val newDirs = currentDirs.filterNot { it.startsWith("$consoleId:") }.toMutableSet()
+            if (path.isNotEmpty()) {
+                newDirs.add("$consoleId:$path")
+            }
+            settings[SettingsKeys.CONSOLE_DOWNLOAD_DIRECTORIES] = newDirs
+        }
+    }
 }

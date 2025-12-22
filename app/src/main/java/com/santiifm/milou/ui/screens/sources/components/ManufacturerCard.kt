@@ -20,10 +20,12 @@ fun ManufacturerCard(
     onAddUrl: (String) -> Unit,
     onEditConsole: (String) -> Unit,
     onDeleteConsole: (String) -> Unit,
-    onDeleteUrl: (String, Int) -> Unit
+    onDeleteUrl: (String, Int) -> Unit,
+    onSetCustomDownloadPath: (String) -> Unit,
+    getCustomDownloadPathForConsole: (String) -> String?
 ) {
     var expanded by remember { mutableStateOf(false) }
-    
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -43,8 +45,10 @@ fun ManufacturerCard(
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
-                
-                Row {
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy((-12).dp)
+                ) {
                     IconButton(onClick = onEditManufacturer) {
                         Icon(painterResource(R.drawable.ic_edit), contentDescription = "Edit Manufacturer")
                     }
@@ -59,13 +63,13 @@ fun ManufacturerCard(
                     }
                 }
             }
-            
+
             Text(
                 text = "${manufacturer.consoles.size} console${if (manufacturer.consoles.size != 1) "s" else ""}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            
+
             Button(
                 onClick = onAddConsole,
                 modifier = Modifier
@@ -76,7 +80,7 @@ fun ManufacturerCard(
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Add Console", style = MaterialTheme.typography.bodySmall)
             }
-            
+
             if (expanded) {
                 Column(
                     modifier = Modifier
@@ -87,10 +91,12 @@ fun ManufacturerCard(
                     manufacturer.consoles.forEach { console ->
                         ConsoleCard(
                             console = console,
+                            customDownloadPath = getCustomDownloadPathForConsole(console.id),
                             onAddUrl = { onAddUrl(console.id) },
                             onEditConsole = { onEditConsole(console.id) },
                             onDeleteConsole = { onDeleteConsole(console.id) },
-                            onDeleteUrl = { urlIndex -> onDeleteUrl(console.id, urlIndex) }
+                            onDeleteUrl = { urlIndex -> onDeleteUrl(console.id, urlIndex) },
+                            onSetCustomDownloadPath = { onSetCustomDownloadPath(console.id) }
                         )
                     }
                 }

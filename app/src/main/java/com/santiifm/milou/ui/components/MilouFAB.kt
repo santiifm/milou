@@ -32,11 +32,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.santiifm.milou.R
 import com.santiifm.milou.ui.navigation.NavRoutes
-import com.santiifm.milou.ui.screens.sources.SourcesViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,12 +43,11 @@ fun MilouFAB(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
-    val sourcesViewModel: SourcesViewModel = hiltViewModel()
     var isExpanded by remember { mutableStateOf(false) }
 
     val fabSize = 64.dp
     val expandedFabWidth by animateDpAsState(
-        targetValue = if (isExpanded) 200.dp else fabSize,
+        targetValue = if (isExpanded) 160.dp else fabSize,
         animationSpec = spring(dampingRatio = 1f)
     )
     val expandedFabHeight by animateDpAsState(
@@ -61,11 +58,11 @@ fun MilouFAB(
     Column {
         Box(
             modifier = modifier
-                .offset(y = (-25).dp)
+                .offset(y = (-15).dp)
                 .size(
                     width = expandedFabWidth,
                     height = animateDpAsState(
-                        if (isExpanded) 225.dp else 0.dp,
+                        if (isExpanded) 180.dp else 0.dp,
                         animationSpec = spring(dampingRatio = 1f)
                     ).value
                 )
@@ -78,12 +75,6 @@ fun MilouFAB(
                 Column(
                     modifier = modifier.padding(16.dp)
                 ) {
-                    Text(
-                        text = stringResource(R.string.fab_navigation_actions),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = modifier.padding(bottom = 8.dp)
-                    )
-                    
                     NavRoutes.allRoutes
                         .filter { it.route != currentRoute }
                         .forEach { route ->
@@ -98,27 +89,11 @@ fun MilouFAB(
                             ) {
                                 Text(
                                     text = route.label,
-                                    modifier = modifier.padding(start = 12.dp),
+                                    modifier = modifier.padding(start = 4.dp),
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                             }
                         }
-                    
-                    Row(
-                        modifier = modifier
-                            .clickable {
-                                sourcesViewModel.rescanAllSources()
-                                isExpanded = false
-                            }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.fab_refresh_db),
-                            modifier = modifier.padding(start = 12.dp),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
                 }
             }
         }
@@ -140,7 +115,7 @@ fun MilouFAB(
                 modifier = modifier
                     .size(24.dp)
                     .offset(x = animateDpAsState(
-                        if (isExpanded) -70.dp else 0.dp, 
+                        if (isExpanded) -50.dp else 0.dp,
                         animationSpec = spring(dampingRatio = 3f)
                     ).value)
             )
@@ -150,7 +125,7 @@ fun MilouFAB(
                 softWrap = false,
                 modifier = modifier
                     .offset(x = animateDpAsState(
-                        if (isExpanded) 10.dp else 50.dp, 
+                        if (isExpanded) -10.dp else 20.dp,
                         animationSpec = spring(dampingRatio = 3f)
                     ).value)
                     .alpha(

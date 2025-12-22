@@ -30,7 +30,7 @@ import javax.inject.Singleton
 
 @Singleton
 class DownloadService @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val settingsRepository: SettingsRepository,
     private val archiveExtractorService: ArchiveExtractorService,
     private val downloadSpeedController: DownloadSpeedController,
@@ -53,7 +53,7 @@ class DownloadService @Inject constructor(
         }
     }
 
-    suspend fun startDownload(file: DownloadableFileEntity) {
+    fun startDownload(file: DownloadableFileEntity) {
         val downloadItem = downloadFileManager.createDownloadItem(file)
         downloadProgressTracker.addDownload(downloadItem)
         originalDownloadEntities[file.fileName] = file
@@ -105,7 +105,7 @@ class DownloadService @Inject constructor(
     }
 
     private suspend fun performDownloadAttempt(file: DownloadableFileEntity) {
-        val downloadDirectoryUri = downloadFileManager.getDownloadDirectoryUri()
+        val downloadDirectoryUri = downloadFileManager.getDownloadDirectoryUri(file)
         if (downloadDirectoryUri.toString().isEmpty()) {
             throw Exception("Download directory not configured. Please set a download folder in settings.")
         }
@@ -249,10 +249,8 @@ class DownloadService @Inject constructor(
                         val extractedFiles = archiveExtractorService.extractArchive(
                             context,
                             documentFile.uri,
-                            downloadFileManager.getDownloadDirectoryUri(),
-                            subPath,
-                            { progress -> 
-                            }
+                            downloadFileManager.getDownloadDirectoryUri(file),
+                            subPath
                         )
                         
                         val extractionSuccess = extractedFiles.isNotEmpty()

@@ -7,20 +7,24 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.santiifm.milou.data.model.Console
+import com.santiifm.milou.util.FileParsingUtils
 
 @Composable
 fun ConsoleCard(
     console: Console,
+    customDownloadPath: String?,
     onAddUrl: () -> Unit,
     onEditConsole: () -> Unit,
     onDeleteConsole: () -> Unit,
-    onDeleteUrl: (Int) -> Unit
+    onDeleteUrl: (Int) -> Unit,
+    onSetCustomDownloadPath: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -34,16 +38,24 @@ fun ConsoleCard(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = console.name,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f)
                 )
-                
-                Row {
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy((-12).dp)
+                ) {
+                    IconButton(onClick = onAddUrl) {
+                        Icon(painterResource(R.drawable.ic_add), contentDescription = "Add URL")
+                    }
+                    IconButton(onClick = onSetCustomDownloadPath) {
+                        Icon(painterResource(R.drawable.ic_folder), contentDescription = "Set Custom Download Path")
+                    }
                     IconButton(onClick = onEditConsole) {
                         Icon(painterResource(R.drawable.ic_edit), contentDescription = "Edit Console")
                     }
@@ -58,24 +70,15 @@ fun ConsoleCard(
                     }
                 }
             }
-            
-            Text(
-                text = "${console.urls.size} URL${if (console.urls.size != 1) "s" else ""}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            
-            OutlinedButton(
-                onClick = onAddUrl,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp)
-            ) {
-                Icon(painterResource(R.drawable.ic_add), contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Add URL", style = MaterialTheme.typography.bodySmall)
+
+            if (customDownloadPath != null) {
+                Text(
+                    text = "Download Path: ${FileParsingUtils.toUserReadablePath(customDownloadPath)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
             }
-            
+
             if (expanded) {
                 Column(
                     modifier = Modifier
@@ -126,7 +129,7 @@ private fun UrlItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            
+
             IconButton(onClick = onDelete) {
                 Icon(
                     painterResource(R.drawable.ic_trash),

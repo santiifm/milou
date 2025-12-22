@@ -19,12 +19,12 @@ import javax.inject.Singleton
 
 @Singleton
 class DownloadFileManager @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val settingsRepository: SettingsRepository,
     private val consoleRepository: ConsoleRepository
 ) {
-    
-    suspend fun createDownloadItem(file: DownloadableFileEntity): DownloadItemModel {
+
+    fun createDownloadItem(file: DownloadableFileEntity): DownloadItemModel {
         return DownloadItemModel(
             name = file.name,
             fileName = file.fileName, // Keep original for tracking
@@ -35,7 +35,7 @@ class DownloadFileManager @Inject constructor(
             fileSize = file.fileSize
         )
     }
-    
+
     fun createDocumentFile(
         file: DownloadableFileEntity,
         downloadDirectoryUri: String,
@@ -50,11 +50,11 @@ class DownloadFileManager @Inject constructor(
             mimeType = "application/octet-stream"
         )
     }
-    
+
     fun getOutputStream(documentFile: DocumentFile): java.io.OutputStream? {
         return StorageHelper.getOutputStream(context, documentFile)
     }
-    
+
     fun deleteFile(documentFile: DocumentFile): Boolean {
         return try {
             StorageHelper.deleteFile(documentFile)
@@ -63,21 +63,21 @@ class DownloadFileManager @Inject constructor(
             false
         }
     }
-    
+
     suspend fun deleteFileByName(file: DownloadableFileEntity, deleteFile: Boolean = false): Boolean {
         if (!deleteFile) return true
-        
+
         return try {
-            val downloadDirectoryUri = getDownloadDirectoryUri()
+            val downloadDirectoryUri = getDownloadDirectoryUri(file)
             val subPath = getSubPath(file)
             val decodedFileName = FileParsingUtils.decodeUrlEncodedFileName(file.fileName)
-            
+
             val directory = StorageHelper.createDirectory(
                 context = context,
                 uriString = downloadDirectoryUri.toString(),
                 subPath = subPath
             ) ?: return false
-            
+
             // If we have extracted files list, delete those specific files
             if (file.extractedFiles.isNotEmpty()) {
                 var deletedAny = false
@@ -89,7 +89,7 @@ class DownloadFileManager @Inject constructor(
                 }
                 return deletedAny
             }
-            
+
             // Fallback: try to delete the original archive file
             val archiveFile = directory.findFile(decodedFileName)
             if (archiveFile != null && archiveFile.exists()) {
@@ -101,20 +101,27 @@ class DownloadFileManager @Inject constructor(
             false
         }
     }
-    
-    suspend fun getDownloadDirectoryUri(): Uri {
-        return settingsRepository.downloadDirectory.first().toUri()
+
+    suspend fun getDownloadDirectoryUri(file: DownloadableFileEntity): Uri {
+        val consoleDownloadDirs = settingsRepository.consoleDownloadDirectories.first()
+        val customPath = consoleDownloadDirs[file.consoleId]
+        return customPath?.toUri() ?: settingsRepository.downloadDirectory.first().toUri()
     }
-    
+
     suspend fun getSubPath(file: DownloadableFileEntity): String {
+        val consoleDownloadDirs = settingsRepository.consoleDownloadDirectories.first()
+        if (consoleDownloadDirs.containsKey(file.consoleId)) {
+            return ""
+        }
+
         val separateByConsole = settingsRepository.separateByConsole.first()
-        
+
         if (!separateByConsole) return ""
-        
+
         val consoles = consoleRepository.getAllConsoles().first()
         val console = consoles.find { it.id == file.consoleId }
         return if (console != null) {
-            ConsoleFormatter.getConsoleDisplayName(console.id)
+            FileParsingUtils.sanitizeFolderName(ConsoleFormatter.getConsoleFolderName(console.id))
         } else {
             "Unknown"
         }

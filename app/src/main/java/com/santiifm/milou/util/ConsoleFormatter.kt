@@ -16,6 +16,16 @@ object ConsoleFormatter {
         
         return splitLongConsoleName(formatted)
     }
+
+    fun getConsoleFolderName(consoleId: String): String {
+        val consoleName = if (consoleId.contains("_")) {
+            consoleId.substringAfter("_")
+        } else {
+            consoleId
+        }
+
+        return consoleName.replace("_", " ").let { StringUtils.capitalizeWords(it) }
+    }
     
     private fun splitLongConsoleName(name: String): String {
         val words = name.split(" ")

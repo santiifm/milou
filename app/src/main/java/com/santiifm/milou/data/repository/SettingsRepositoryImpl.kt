@@ -16,6 +16,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override val limitSpeed: Flow<Float> = settingsDataStore.limitSpeed
     override val autoUnzip: Flow<Boolean> = settingsDataStore.autoUnzip
     override val concurrentDownloads: Flow<Int> = settingsDataStore.concurrentDownloads
+    override val consoleDownloadDirectories: Flow<Map<String, String>> = settingsDataStore.consoleDownloadDirectories
 
     override suspend fun updateDownloadDirectory(path: String): Preferences {
         return settingsDataStore.updateDownloadDirectory(path)
@@ -35,5 +36,9 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun setConcurrentDownloads(count: Int): Preferences {
         return settingsDataStore.setConcurrentDownloads(count)
+    }
+
+    override suspend fun updateConsoleDownloadDirectory(consoleId: String, path: String) {
+        settingsDataStore.updateConsoleDownloadDirectory(consoleId, path)
     }
 }

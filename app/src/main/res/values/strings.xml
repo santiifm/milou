@@ -16,7 +16,7 @@
     
     <!-- Search & Filter -->
     <string name="search_library">Search library</string>
-    <string name="search_consoles">Search consoles...</string>
+    <string name="search_consoles">Search consoles…</string>
     <string name="filter_by_console">Filter by Console</string>
     <string name="filter_by_tags">Filter by Tags</string>
     <string name="all_consoles">All Consoles</string>
@@ -25,14 +25,13 @@
     <!-- FAB -->
     <string name="fab_menu">Menu</string>
     <string name="fab_navigation_actions">Navigation &amp; Actions</string>
-    <string name="fab_refresh_db">Refresh DB</string>
     
     <!-- Downloads -->
     <string name="download_started">Download of "%1$s" has been started</string>
     <string name="download_speed">%1$.2f MB/s</string>
     <string name="download_size">Size: %1$s</string>
     <string name="download_cancel">Cancel Download</string>
-    <string name="extracting_files">Extracting files...</string>
+    <string name="extracting_files">Extracting files…</string>
     <string name="download_retry">Retry Download</string>
     <string name="download_delete">Delete Download</string>
     <string name="download_action">Action</string>
