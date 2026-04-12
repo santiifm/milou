@@ -22,7 +22,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.Divider
+import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -278,7 +279,7 @@ private fun CompactConsoleItem(
             .padding(vertical = 2.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        androidx.compose.material3.Checkbox(
+        Checkbox(
             checked = isSelected,
             onCheckedChange = { onClick() },
             modifier = Modifier.size(18.dp)
@@ -374,9 +375,10 @@ private fun CollapsibleTagCategorySection(
                 }
             }
         }
-        
-        Divider(
+
+        HorizontalDivider(
             modifier = Modifier.padding(vertical = 2.dp),
+            thickness = DividerDefaults.Thickness,
             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
         )
     }

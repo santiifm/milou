@@ -1,11 +1,10 @@
 package com.santiifm.milou.data.repository
 
-import com.santiifm.milou.data.local.dao.DownloadableFileDao
 import com.santiifm.milou.data.local.dao.ConsoleWithFileCount
+import com.santiifm.milou.data.local.dao.DownloadableFileDao
 import com.santiifm.milou.data.local.entity.DownloadableFileEntity
-import com.santiifm.milou.data.local.entity.FileTagEntity
-import com.santiifm.milou.data.model.DownloadableFileWithTags
 import com.santiifm.milou.data.model.CategorizedTags
+import com.santiifm.milou.data.model.DownloadableFileWithTags
 import com.santiifm.milou.data.model.TagCategorizer
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,8 +16,9 @@ class DownloadableFileRepository @Inject constructor(
     suspend fun searchFilesWithTags(
         query: String,
         manufacturer: String? = null,
-        consoleId: String? = null,
+        consoleIds: Set<String> = emptySet(),
         tags: Set<String> = emptySet(),
+        matchAllTags: Boolean = false,
         sortAsc: Boolean = true,
         limit: Int = 100,
         offset: Int = 0
@@ -26,14 +26,15 @@ class DownloadableFileRepository @Inject constructor(
         val results = dao.queryFilesWithTags(
             query = query.ifBlank { "*" },
             manufacturer = manufacturer,
-            consoleId = consoleId,
+            consoleIds = consoleIds.toList(),
+            consoleIdsCount = consoleIds.size,
             tags = tags.toList(),
             tagsCount = tags.size,
+            matchAllTags = matchAllTags,
             sortAsc = sortAsc,
             limit = limit,
             offset = offset
         )
-        
         return results.map { result ->
             DownloadableFileWithTags(
                 file = DownloadableFileEntity(
@@ -43,59 +44,33 @@ class DownloadableFileRepository @Inject constructor(
                     consoleId = result.consoleId,
                     downloadUrl = result.downloadUrl,
                     fileSize = result.fileSize,
-                    fileExtension = result.fileExtension
+                    fileExtension = result.fileExtension,
+                    torrentFileIndex = result.torrentFileIndex,
+                    torrentMagnet = result.torrentMagnet
                 ),
-                tags = result.tags?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+                tags = result.tags?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
             )
         }
     }
 
-    suspend fun isDatabaseEmpty(): Boolean = dao.getFilesCount() == 0
-
-    suspend fun insertAll(files: List<DownloadableFileEntity>): List<Long> {
-        return dao.insertAll(files)
-    }
-
-    suspend fun insertTags(tags: List<FileTagEntity>) {
-        dao.insertTags(tags)
-    }
-
-    suspend fun clearAll() {
-        dao.clearAll()
-    }
+    suspend fun clearAll() = dao.clearAll()
 
     suspend fun getAvailableTags(
         query: String,
         manufacturer: String? = null,
-        consoleId: String? = null
-    ): List<String> {
-        return dao.getAvailableTags(
-            query = query.ifBlank { "*" },
-            manufacturer = manufacturer,
-            consoleId = consoleId
-        )
-    }
-    
+        consoleIds: Set<String> = emptySet()
+    ): List<String> =
+        dao.getAvailableTags(query.ifBlank { "*" }, manufacturer, consoleIds.toList(), consoleIds.size)
+
     suspend fun getCategorizedTags(
         query: String,
         manufacturer: String? = null,
-        consoleId: String? = null
-    ): CategorizedTags {
-        val allTags = dao.getAvailableTags(
-            query = query.ifBlank { "*" },
-            manufacturer = manufacturer,
-            consoleId = consoleId
+        consoleIds: Set<String> = emptySet()
+    ): CategorizedTags =
+        TagCategorizer.categorizeTags(
+            dao.getAvailableTags(query.ifBlank { "*" }, manufacturer, consoleIds.toList(), consoleIds.size)
         )
-        return TagCategorizer.categorizeTags(allTags)
-    }
-    
-    suspend fun getConsolesWithFiles(
-        query: String,
-        manufacturer: String? = null
-    ): List<ConsoleWithFileCount> {
-        return dao.getConsolesWithFiles(
-            query = query.ifBlank { "*" },
-            manufacturer = manufacturer
-        )
-    }
+
+    suspend fun getConsolesWithFiles(query: String, manufacturer: String? = null): List<ConsoleWithFileCount> =
+        dao.getConsolesWithFiles(query.ifBlank { "*" }, manufacturer)
 }

@@ -22,6 +22,7 @@ fun ManufacturerCard(
     onDeleteConsole: (String) -> Unit,
     onDeleteUrl: (String, Int) -> Unit,
     onSetCustomDownloadPath: (String) -> Unit,
+    onRefreshConsole: (String) -> Unit,
     getCustomDownloadPathForConsole: (String) -> String?
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -96,7 +97,8 @@ fun ManufacturerCard(
                             onEditConsole = { onEditConsole(console.id) },
                             onDeleteConsole = { onDeleteConsole(console.id) },
                             onDeleteUrl = { urlIndex -> onDeleteUrl(console.id, urlIndex) },
-                            onSetCustomDownloadPath = { onSetCustomDownloadPath(console.id) }
+                            onSetCustomDownloadPath = { onSetCustomDownloadPath(console.id) },
+                            onRefreshConsole = { onRefreshConsole(console.id) }
                         )
                     }
                 }

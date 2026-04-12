@@ -17,18 +17,29 @@ android {
         minSdk = 29
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0.3"
+        versionName = "1.0.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+    }
+
+    android.bundle {
+        abi {
+            enableSplit = true
         }
     }
     compileOptions {
@@ -41,11 +52,20 @@ android {
     buildFeatures {
         compose = true
     }
-    
+
     lint {
         abortOnError = false
         checkReleaseBuilds = false
         disable += setOf("MissingTranslation", "ExtraTranslation")
+    }
+
+    packaging {
+        jniLibs {
+            excludes += listOf(
+                "META-INF/LICENSE",
+                "META-INF/LICENSE.txt"
+            )
+        }
     }
 }
 
@@ -70,10 +90,14 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.androidx.documentfile)
     implementation(libs.jsoup)
-    implementation(libs.commons.compress)
-    implementation(libs.jsoup)
-    implementation(libs.gson)
+    implementation(libs.seven.zip.jbinding)
     implementation(libs.kotlinx.coroutines.core)
+
+    // libtorrent4j
+    implementation(libs.libtorrent4j.android.arm64.v8a)
+    implementation(libs.libtorrent4j.android.armeabi.v7a)
+    implementation(libs.libtorrent4j.android.x86.x4)
+
     kapt(libs.hilt.compiler)
     kapt(libs.androidx.room.compiler)
     testImplementation(libs.junit)

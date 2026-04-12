@@ -13,5 +13,8 @@ fun iconColorFor(icon: Int): Color = when(icon) {
     R.drawable.ic_check -> NeonGreen
     R.drawable.ic_error -> NeonRed
     R.drawable.ic_stop -> WarmOrange
+    R.drawable.ic_arrow_up -> WarmOrange
+    R.drawable.ic_trash -> NeonRed
+    R.drawable.ic_folder -> LightningBlue
     else -> LightText
 }

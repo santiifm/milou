@@ -2,6 +2,7 @@ package com.santiifm.milou.data.service
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
 import com.santiifm.milou.data.local.entity.DownloadableFileEntity
@@ -13,7 +14,9 @@ import com.santiifm.milou.util.ConsoleFormatter
 import com.santiifm.milou.util.FileParsingUtils
 import com.santiifm.milou.util.StorageHelper
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,7 +30,7 @@ class DownloadFileManager @Inject constructor(
     fun createDownloadItem(file: DownloadableFileEntity): DownloadItemModel {
         return DownloadItemModel(
             name = file.name,
-            fileName = file.fileName, // Keep original for tracking
+            fileName = file.fileName,
             downloadSpeed = 0f,
             progress = 0f,
             status = DownloadStatus.DOWNLOADING,
@@ -47,7 +50,8 @@ class DownloadFileManager @Inject constructor(
             uriString = downloadDirectoryUri,
             subPath = subPath,
             fileName = decodedFileName,
-            mimeType = "application/octet-stream"
+            mimeType = "application/octet-stream",
+            overwrite = true
         )
     }
 
@@ -55,16 +59,22 @@ class DownloadFileManager @Inject constructor(
         return StorageHelper.getOutputStream(context, documentFile)
     }
 
-    fun deleteFile(documentFile: DocumentFile): Boolean {
-        return try {
-            StorageHelper.deleteFile(documentFile)
-            true
-        } catch (_: Exception) {
-            false
+    suspend fun deleteFile(documentFile: DocumentFile): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                StorageHelper.deleteFile(documentFile)
+                true
+            } catch (_: Exception) {
+                false
+            }
         }
     }
 
-    suspend fun deleteFileByName(file: DownloadableFileEntity, deleteFile: Boolean = false): Boolean {
+    suspend fun deleteFileByName(
+        file: DownloadableFileEntity,
+        deleteFile: Boolean = false,
+        extractedFiles: List<String> = emptyList()
+    ): Boolean {
         if (!deleteFile) return true
 
         return try {
@@ -78,10 +88,9 @@ class DownloadFileManager @Inject constructor(
                 subPath = subPath
             ) ?: return false
 
-            // If we have extracted files list, delete those specific files
-            if (file.extractedFiles.isNotEmpty()) {
+            if (extractedFiles.isNotEmpty()) {
                 var deletedAny = false
-                file.extractedFiles.forEach { extractedFileName ->
+                extractedFiles.forEach { extractedFileName ->
                     val fileToDelete = directory.findFile(extractedFileName)
                     if (fileToDelete?.delete() == true) {
                         deletedAny = true
@@ -90,7 +99,6 @@ class DownloadFileManager @Inject constructor(
                 return deletedAny
             }
 
-            // Fallback: try to delete the original archive file
             val archiveFile = directory.findFile(decodedFileName)
             if (archiveFile != null && archiveFile.exists()) {
                 return archiveFile.delete()
@@ -103,23 +111,34 @@ class DownloadFileManager @Inject constructor(
     }
 
     suspend fun getDownloadDirectoryUri(file: DownloadableFileEntity): Uri {
-        val consoleDownloadDirs = settingsRepository.consoleDownloadDirectories.first()
-        val customPath = consoleDownloadDirs[file.consoleId]
-        return customPath?.toUri() ?: settingsRepository.downloadDirectory.first().toUri()
+        val uriString = settingsRepository.consoleDownloadDirectories.first()[file.consoleId]
+            ?: settingsRepository.downloadDirectory.first()
+
+        if (uriString.isEmpty()) return Uri.EMPTY
+
+        val uri = uriString.toUri()
+        try {
+            val df = DocumentFile.fromTreeUri(context, uri)
+            if (df == null || !df.exists() || !df.canWrite()) {
+                Log.e("DownloadFileManager", "Tree URI is no longer valid: $uriString")
+                return Uri.EMPTY
+            }
+        } catch (e: Exception) {
+            Log.e("DownloadFileManager", "Error validating Tree URI: ${e.message}")
+            return Uri.EMPTY
+        }
+
+        return uri
     }
 
     suspend fun getSubPath(file: DownloadableFileEntity): String {
         val consoleDownloadDirs = settingsRepository.consoleDownloadDirectories.first()
-        if (consoleDownloadDirs.containsKey(file.consoleId)) {
-            return ""
-        }
+        if (consoleDownloadDirs.containsKey(file.consoleId)) return ""
 
         val separateByConsole = settingsRepository.separateByConsole.first()
-
         if (!separateByConsole) return ""
 
-        val consoles = consoleRepository.getAllConsoles().first()
-        val console = consoles.find { it.id == file.consoleId }
+        val console = consoleRepository.getConsoleById(file.consoleId)
         return if (console != null) {
             FileParsingUtils.sanitizeFolderName(ConsoleFormatter.getConsoleFolderName(console.id))
         } else {

@@ -2,7 +2,6 @@ package com.santiifm.milou.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
-import androidx.room.Ignore
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
@@ -15,7 +14,7 @@ import androidx.room.PrimaryKey
             childColumns = ["consoleId"],
             onDelete = ForeignKey.CASCADE
         )
-  ],
+    ],
     indices = [Index("consoleId")]
 )
 data class DownloadableFileEntity(
@@ -26,16 +25,8 @@ data class DownloadableFileEntity(
     val downloadUrl: String,
     val fileSize: Long = 0L,
     val fileExtension: String = "",
-    @Ignore val extractedFiles: List<String> = emptyList()
+    val torrentFileIndex: Int? = null,
+    val torrentMagnet: String? = null,
 ) {
-    constructor(
-        id: Long,
-        name: String,
-        fileName: String,
-        consoleId: String,
-        downloadUrl: String,
-        fileSize: Long,
-        fileExtension: String
-    ) : this(id, name, fileName, consoleId, downloadUrl, fileSize, fileExtension, emptyList())
+    val isTorrent: Boolean get() = torrentFileIndex != null && torrentMagnet != null
 }
-

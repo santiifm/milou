@@ -1,3 +1,6 @@
+# 7-Zip-JBinding — JNI bridge classes must not be renamed or stripped
+-keep class net.sf.sevenzipjbinding.** { *; }
+
 # Add project specific ProGuard rules here.
 # You can control the set of applied configuration files using the
 # proguardFiles setting in build.gradle.

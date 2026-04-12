@@ -3,9 +3,10 @@ package com.santiifm.milou.data.model
 import com.santiifm.milou.R
 
 enum class DownloadStatus {
-    DOWNLOADING, 
+    DOWNLOADING,
+    COPYING,
     UNZIPPING,
-    COMPLETED, 
+    COMPLETED,
     FAILED,
     STOPPED
 }
@@ -13,7 +14,25 @@ enum class DownloadStatus {
 data class StatusAssets(
     val currentStatusIcon: Int,
     val availableStatusIcons: IntArray
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as StatusAssets
+
+        if (currentStatusIcon != other.currentStatusIcon) return false
+        if (!availableStatusIcons.contentEquals(other.availableStatusIcons)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = currentStatusIcon
+        result = 31 * result + availableStatusIcons.contentHashCode()
+        return result
+    }
+}
 
 data class DownloadItemModel(
     val name: String,
@@ -32,6 +51,11 @@ fun DownloadItemModel.getStatusAssets(): StatusAssets = when (status) {
                 R.drawable.ic_stop
             )
         )
+    DownloadStatus.COPYING ->
+        StatusAssets(
+            currentStatusIcon = R.drawable.ic_folder,
+            availableStatusIcons = intArrayOf()
+        )
     DownloadStatus.UNZIPPING ->
         StatusAssets(
             currentStatusIcon = R.drawable.ic_extract,
@@ -41,7 +65,7 @@ fun DownloadItemModel.getStatusAssets(): StatusAssets = when (status) {
         )
     DownloadStatus.COMPLETED ->
         StatusAssets(
-            currentStatusIcon = R.drawable.ic_check,
+            currentStatusIcon = R.drawable.ic_arrow_up,
             availableStatusIcons = intArrayOf(
                 R.drawable.ic_retry,
                 R.drawable.ic_trash

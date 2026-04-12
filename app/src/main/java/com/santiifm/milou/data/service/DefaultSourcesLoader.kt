@@ -5,6 +5,8 @@ import com.santiifm.milou.data.local.dao.ConsoleDao
 import com.santiifm.milou.data.local.dao.ManufacturerDao
 import com.santiifm.milou.data.local.entity.ConsoleEntity
 import com.santiifm.milou.data.local.entity.ManufacturerEntity
+import com.santiifm.milou.util.FileParsingUtils
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -12,17 +14,19 @@ import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val TAG = "DefaultSourcesLoader"
+
 @Singleton
 class DefaultSourcesLoader @Inject constructor(
     private val manufacturerDao: ManufacturerDao,
     private val consoleDao: ConsoleDao
 ) {
-    
+
     suspend fun loadDefaultSourcesToDatabase(context: Context) = withContext(Dispatchers.IO) {
         try {
             consoleDao.clearAll()
             manufacturerDao.clearAll()
-            
+
             val jsonString = context.assets.open("consoles.json").bufferedReader().use { it.readText() }
             val jsonObject = JSONObject(jsonString)
 
@@ -31,68 +35,57 @@ class DefaultSourcesLoader @Inject constructor(
 
             jsonObject.keys().forEach { manufacturerName ->
                 val manufacturerObj = jsonObject.getJSONObject(manufacturerName)
-
-                val manufacturer = ManufacturerEntity(
-                    id = manufacturerName,
-                    name = formatManufacturerName(manufacturerName)
-                )
-                manufacturers.add(manufacturer)
+                manufacturers.add(ManufacturerEntity(id = manufacturerName, name = formatManufacturerName(manufacturerName)))
 
                 manufacturerObj.keys().forEach { consoleName ->
                     val consoleObj = manufacturerObj.getJSONObject(consoleName)
                     val urlEntries = mutableListOf<JSONObject>()
 
-                    // Use new "urls" format
                     val urlsArray = consoleObj.getJSONArray("urls")
                     for (i in 0 until urlsArray.length()) {
                         val urlObj = urlsArray.getJSONObject(i)
-                        val urlEntry = JSONObject().apply {
-                            put("url", urlObj.getString("url"))
-                            put("contentType", urlObj.optString("contentType", "GAME"))
+                        var url = urlObj.getString("url")
+                        
+                        if (url.startsWith("magnet:")) {
+                            url = FileParsingUtils.optimizeMagnetUri(url)
                         }
-                        urlEntries.add(urlEntry)
+
+                        val entry = JSONObject().apply {
+                            put("url", url)
+                            put("contentType", urlObj.optString("contentType", "GAME"))
+                            if (urlObj.has("folders")) put("folders", urlObj.getJSONArray("folders"))
+                        }
+                        urlEntries.add(entry)
                     }
 
-                    val console = ConsoleEntity(
+                    consoles.add(ConsoleEntity(
                         id = "${manufacturerName}_${consoleName}",
                         name = formatConsoleName(consoleName),
                         manufacturerId = manufacturerName,
                         urls = JSONArray(urlEntries).toString()
-                    )
-                    consoles.add(console)
+                    ))
                 }
             }
 
-            println("Inserting ${manufacturers.size} manufacturers...")
             manufacturerDao.insertManufacturers(manufacturers)
-            
-            println("Inserting ${consoles.size} consoles...")
             consoleDao.insertConsoles(consoles)
-
-            println("Loaded ${manufacturers.size} manufacturers and ${consoles.size} consoles into database")
+            Log.d(TAG, "Loaded ${manufacturers.size} manufacturers and ${consoles.size} consoles")
         } catch (e: Exception) {
-            println("Error loading default sources: ${e.message}")
-            e.printStackTrace()
+            Log.e(TAG, "Error loading default sources: ${e.message}", e)
         }
     }
-    
-    private fun formatManufacturerName(name: String): String {
-        return name.split("_")
-            .joinToString(" ") { word ->
-                word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+
+    private fun formatManufacturerName(name: String) =
+        name.split("_").joinToString(" ") { it.replaceFirstChar { c -> if (c.isLowerCase()) c.titlecase() else c.toString() } }
+
+    private fun formatConsoleName(name: String) =
+        name.split("_").joinToString(" ") { word ->
+            when (word.lowercase()) {
+                "snes" -> "SNES"
+                "ps1", "ps2", "ps3", "ps4", "ps5" -> word.uppercase()
+                "n64" -> "N64"
+                "gb", "gbc", "gba" -> word.uppercase()
+                else -> word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
             }
-    }
-    
-    private fun formatConsoleName(name: String): String {
-        return name.split("_")
-            .joinToString(" ") { word ->
-                when (word.lowercase()) {
-                    "snes" -> "SNES"
-                    "ps1", "ps2", "ps3", "ps4", "ps5" -> word.uppercase()
-                    "n64" -> "N64"
-                    "gb", "gbc", "gba" -> word.uppercase()
-                    else -> word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-                }
-            }
-    }
+        }
 }

@@ -7,46 +7,54 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.santiifm.milou.data.local.entity.DownloadableFileEntity
 import com.santiifm.milou.data.local.entity.FileTagEntity
-import kotlin.collections.getOrNull
 
 @Dao
 interface DownloadableFileDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFiles(files: List<DownloadableFileEntity>)
-    
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTags(tags: List<FileTagEntity>)
 
     @Query("""
-        SELECT df.*
+        SELECT df.id, df.name, df.fileName, df.consoleId, df.downloadUrl, df.fileSize,
+               df.fileExtension, df.torrentFileIndex, df.torrentMagnet,
+               GROUP_CONCAT(t.tag, '|') as tags
         FROM downloadable_files df
+        LEFT JOIN downloadable_file_tags t ON df.id = t.fileId
         JOIN consoles c ON df.consoleId = c.id
         JOIN manufacturers m ON c.manufacturerId = m.id
         WHERE (:query = '*' OR df.name LIKE '%' || :query || '%')
           AND (:manufacturer IS NULL OR m.name = :manufacturer)
-          AND (:consoleId IS NULL OR df.consoleId = :consoleId)
-          AND (:tagsCount = 0 OR EXISTS (
-                SELECT 1
-                FROM downloadable_file_tags t
-                WHERE t.fileId = df.id
-                AND t.tag IN (:tags)
+          AND (:consoleIdsCount = 0 OR df.consoleId IN (:consoleIds))
+          AND (:tagsCount = 0 OR df.id IN (
+                SELECT t2.fileId
+                FROM downloadable_file_tags t2
+                WHERE t2.tag IN (:tags)
+                GROUP BY t2.fileId
+                HAVING (:matchAllTags = 0 AND COUNT(DISTINCT t2.tag) >= 1)
+                   OR (:matchAllTags = 1 AND COUNT(DISTINCT t2.tag) = :tagsCount)
           ))
+        GROUP BY df.id, df.name, df.fileName, df.consoleId, df.downloadUrl, df.fileSize,
+                 df.fileExtension, df.torrentFileIndex, df.torrentMagnet
         ORDER BY
             CASE WHEN :sortAsc = 1 THEN df.name END ASC,
             CASE WHEN :sortAsc = 0 THEN df.name END DESC
         LIMIT :limit OFFSET :offset
     """)
-    suspend fun queryFiles(
+    suspend fun queryFilesWithTags(
         query: String,
         manufacturer: String?,
-        consoleId: String?,
+        consoleIds: List<String>,
+        consoleIdsCount: Int,
         tags: List<String>,
         tagsCount: Int,
+        matchAllTags: Boolean,
         sortAsc: Boolean,
         limit: Int = 100,
         offset: Int = 0
-    ): List<DownloadableFileEntity>
+    ): List<DownloadableFileWithTagsResult>
 
     @Query("SELECT COUNT(*) FROM downloadable_files")
     suspend fun getFilesCount(): Int
@@ -59,15 +67,16 @@ interface DownloadableFileDao {
         JOIN manufacturers m ON c.manufacturerId = m.id
         WHERE (:query = '*' OR df.name LIKE '%' || :query || '%')
           AND (:manufacturer IS NULL OR m.name = :manufacturer)
-          AND (:consoleId IS NULL OR df.consoleId = :consoleId)
+          AND (:consoleIdsCount = 0 OR df.consoleId IN (:consoleIds))
         ORDER BY t.tag ASC
     """)
     suspend fun getAvailableTags(
         query: String,
         manufacturer: String?,
-        consoleId: String?
+        consoleIds: List<String>,
+        consoleIdsCount: Int
     ): List<String>
-    
+
     @Query("""
         SELECT DISTINCT c.id, c.name, c.manufacturerId, c.urls, COUNT(df.id) as fileCount
         FROM consoles c
@@ -99,36 +108,17 @@ interface DownloadableFileDao {
     @Query("DELETE FROM downloadable_files")
     suspend fun clearAll()
 
-    @Query("""
-        SELECT df.id, df.name, df.fileName, df.consoleId, df.downloadUrl, df.fileSize, df.fileExtension, GROUP_CONCAT(t.tag, ',') as tags
-        FROM downloadable_files df
-        LEFT JOIN downloadable_file_tags t ON df.id = t.fileId
-        JOIN consoles c ON df.consoleId = c.id
-        JOIN manufacturers m ON c.manufacturerId = m.id
-        WHERE (:query = '*' OR df.name LIKE '%' || :query || '%')
-          AND (:manufacturer IS NULL OR m.name = :manufacturer)
-          AND (:consoleId IS NULL OR df.consoleId = :consoleId)
-          AND (:tagsCount = 0 OR df.id IN (
-                SELECT DISTINCT t2.fileId
-                FROM downloadable_file_tags t2
-                WHERE t2.tag IN (:tags)
-          ))
-        GROUP BY df.id, df.name, df.fileName, df.consoleId, df.downloadUrl, df.fileSize, df.fileExtension
-        ORDER BY
-            CASE WHEN :sortAsc = 1 THEN df.name END ASC,
-            CASE WHEN :sortAsc = 0 THEN df.name END DESC
-        LIMIT :limit OFFSET :offset
-    """)
-    suspend fun queryFilesWithTags(
-        query: String,
-        manufacturer: String?,
-        consoleId: String?,
-        tags: List<String>,
-        tagsCount: Int,
-        sortAsc: Boolean,
-        limit: Int = 100,
-        offset: Int = 0
-    ): List<DownloadableFileWithTagsResult>
+    @Query("DELETE FROM downloadable_file_tags WHERE fileId IN (SELECT id FROM downloadable_files WHERE consoleId = :consoleId)")
+    suspend fun deleteTagsByConsoleId(consoleId: String)
+
+    @Query("DELETE FROM downloadable_files WHERE consoleId = :consoleId")
+    suspend fun deleteFilesByConsoleIdInternal(consoleId: String)
+
+    @Transaction
+    suspend fun deleteFilesByConsoleId(consoleId: String) {
+        deleteTagsByConsoleId(consoleId)
+        deleteFilesByConsoleIdInternal(consoleId)
+    }
 }
 
 data class DownloadableFileWithTagsResult(
@@ -139,6 +129,8 @@ data class DownloadableFileWithTagsResult(
     val downloadUrl: String,
     val fileSize: Long,
     val fileExtension: String,
+    val torrentFileIndex: Int?,
+    val torrentMagnet: String?,
     val tags: String?
 )
 

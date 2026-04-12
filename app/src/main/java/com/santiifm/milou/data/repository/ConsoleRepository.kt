@@ -22,4 +22,6 @@ class ConsoleRepository @Inject constructor(
     suspend fun isDatabaseEmpty(): Boolean {
         return consoleDao.getAllConsoles().first().isEmpty()
     }
+
+    suspend fun getConsoleById(id: String): ConsoleEntity? = consoleDao.getConsoleById(id)
 }

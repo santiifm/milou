@@ -3,30 +3,11 @@ package com.santiifm.milou.ui.screens.sources
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -57,21 +38,16 @@ fun SourcesScreen(
         contract = ActivityResultContracts.OpenDocumentTree(),
         onResult = { uri ->
             uri?.let {
-                val contentResolver = context.contentResolver
-                contentResolver.takePersistableUriPermission(
+                context.contentResolver.takePersistableUriPermission(
                     it,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 )
-                viewModel.selectedConsoleId.value?.let {
-                    viewModel.updateConsoleDownloadDirectory(it, uri.toString())
+                viewModel.selectedConsoleId.value?.let { consoleId ->
+                    viewModel.updateConsoleDownloadDirectory(consoleId, uri.toString())
                 }
             }
         }
     )
-
-    LaunchedEffect(Unit) {
-        viewModel.loadDefaultSources(context)
-    }
 
     LazyColumn(
         modifier = Modifier
@@ -79,101 +55,15 @@ fun SourcesScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        if (!isLandscape) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Sources",
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = { viewModel.showAddManufacturerDialog() }
-                        ) {
-                            Icon(painterResource(R.drawable.ic_add), contentDescription = "Add Manufacturer")
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            if (isRescanning) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp
-                                )
-                                Text(
-                                    text = "Rescanning...",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            } else {
-                                Button(
-                                    onClick = { viewModel.rescanAllSources() }
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_retry),
-                                        contentDescription = ""
-                                    )
-                                    Text(
-                                        text = "Rescan Sources"
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            // Landscape mode: Show only the action buttons without header text
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = { viewModel.showAddManufacturerDialog() }
-                    ) {
-                        Icon(painterResource(R.drawable.ic_add), contentDescription = "Add Manufacturer")
-                    }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        if (isRescanning) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
-                            Text(
-                                text = "Rescanning...",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            Button(
-                                onClick = { viewModel.rescanAllSources() }
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_retry),
-                                    contentDescription = ""
-                                )
-                                Text(
-                                    text = "Rescan Sources"
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+        item {
+            SourcesHeader(
+                isRescanning = isRescanning,
+                isLandscape = isLandscape,
+                onAddManufacturer = { viewModel.showAddManufacturerDialog() },
+                onRescan = { viewModel.rescanAllSources() }
+            )
         }
+
         if (manufacturers.isEmpty()) {
             item {
                 Card(
@@ -217,6 +107,7 @@ fun SourcesScreen(
                         viewModel.setSelectedConsoleId(consoleId)
                         directoryPicker.launch(null)
                     },
+                    onRefreshConsole = { consoleId -> viewModel.refreshConsole(consoleId) },
                     getCustomDownloadPathForConsole = {
                         consoleDownloadPaths[it]
                     }
@@ -273,8 +164,63 @@ fun SourcesScreen(
         selectedConsoleId?.let { consoleId ->
             AddUrlDialog(
                 onDismiss = { viewModel.hideAddUrlDialog() },
-                onConfirm = { url, contentType -> viewModel.addUrl(consoleId, url, contentType) }
+                onConfirm = { url, contentType ->
+                    viewModel.addUrl(consoleId, url, contentType)
+                }
             )
+        }
+    }
+}
+
+@Composable
+private fun SourcesHeader(
+    isRescanning: Boolean,
+    isLandscape: Boolean,
+    onAddManufacturer: () -> Unit,
+    onRescan: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (isLandscape) Arrangement.End else Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (!isLandscape) {
+            Text(
+                text = "Sources",
+                style = MaterialTheme.typography.titleLarge
+            )
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onAddManufacturer) {
+                Icon(painterResource(R.drawable.ic_add), contentDescription = "Add Manufacturer")
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                if (isRescanning) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Text(
+                        text = "Rescanning...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Button(onClick = onRescan) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_retry),
+                            contentDescription = ""
+                        )
+                        Text(text = "Rescan Sources")
+                    }
+                }
+            }
         }
     }
 }

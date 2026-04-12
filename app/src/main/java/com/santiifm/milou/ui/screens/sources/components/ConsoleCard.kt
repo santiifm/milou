@@ -7,7 +7,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.santiifm.milou.data.model.Console
@@ -21,7 +20,8 @@ fun ConsoleCard(
     onEditConsole: () -> Unit,
     onDeleteConsole: () -> Unit,
     onDeleteUrl: (Int) -> Unit,
-    onSetCustomDownloadPath: () -> Unit
+    onSetCustomDownloadPath: () -> Unit,
+    onRefreshConsole: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -56,6 +56,9 @@ fun ConsoleCard(
                     IconButton(onClick = onSetCustomDownloadPath) {
                         Icon(painterResource(R.drawable.ic_folder), contentDescription = "Set Custom Download Path")
                     }
+                    IconButton(onClick = onRefreshConsole) {
+                        Icon(painterResource(R.drawable.ic_retry), contentDescription = "Refresh Console")
+                    }
                     IconButton(onClick = onEditConsole) {
                         Icon(painterResource(R.drawable.ic_edit), contentDescription = "Edit Console")
                     }
@@ -75,7 +78,7 @@ fun ConsoleCard(
                 Text(
                     text = "Download Path: ${FileParsingUtils.toUserReadablePath(customDownloadPath)}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -119,8 +122,13 @@ private fun UrlItem(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
+                val displayText = if (urlEntry.url.length > 200) {
+                    urlEntry.url.take(197) + "..."
+                } else {
+                    urlEntry.url
+                }
                 Text(
-                    text = urlEntry.url,
+                    text = displayText,
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(

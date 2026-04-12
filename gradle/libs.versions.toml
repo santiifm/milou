@@ -1,5 +1,5 @@
 [versions]
-agp = "8.13.2"
+agp = "9.1.0"
 documentfile = "1.1.0"
 gson = "2.13.2"
 kotlin = "2.2.20"
@@ -8,6 +8,9 @@ hilt = "2.57.2"
 datastorePreferences = "1.1.7"
 coreKtx = "1.17.0"
 kotlinxCoroutinesCore = "1.8.0"
+libtorrent4jAndroidArm64V8a = "2.1.0-39"
+libtorrent4jAndroidArmeabiV7a = "2.1.0-39"
+libtorrent4jAndroidX86_x4 = "2.1.0-39"
 lifecycleRuntimeKtx = "2.9.4"
 activityCompose = "1.11.0"
 navigationCompose = "2.9.5"
@@ -19,7 +22,7 @@ espressoCore = "3.7.0"
 roomCommonJvm = "2.8.3"
 roomKtx = "2.8.3"
 jsoup = "1.17.2"
-commonsCompress = "1.28.0"
+sevenZipJBinding = "Release-16.02-2.03"
 
 [libraries]
 # Core Android
@@ -65,10 +68,15 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 
 # Archive Processing
-commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commonsCompress" }
+seven-zip-jbinding = { module = "com.github.omicronapps:7-Zip-JBinding-4Android", version.ref = "sevenZipJBinding" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutinesCore" }
+
+# libtorrent4j
+libtorrent4j-android-arm64-v8a = { module = "org.libtorrent4j:libtorrent4j-android-arm64", version.ref = "libtorrent4jAndroidArm64V8a" }
+libtorrent4j-android-armeabi-v7a = { module = "org.libtorrent4j:libtorrent4j-android-arm", version.ref = "libtorrent4jAndroidArmeabiV7a" }
+libtorrent4j-android-x86_x4 = { module = "org.libtorrent4j:libtorrent4j-android-x86_64", version.ref = "libtorrent4jAndroidX86_x4" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-

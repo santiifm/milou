@@ -23,12 +23,11 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
-
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): MilouDatabase =
         Room.databaseBuilder(context, MilouDatabase::class.java, "milou_db")
-            .fallbackToDestructiveMigration(true)
+            .addMigrations(MilouDatabase.MIGRATION_1_2)
             .build()
 
     @Provides

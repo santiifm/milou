@@ -133,8 +133,8 @@ object FileParsingUtils {
     }
 
     fun parseFileFromRow(row: Element, baseUrl: String, consoleId: String): Pair<DownloadableFileEntity?, List<FileTagEntity>> {
-        val linkCell = row.select(ScrapingConstants.LINK_CELL_SELECTOR).first()
-        val sizeCell = row.select(ScrapingConstants.SIZE_CELL_SELECTOR).first()
+        val linkCell = row.select("td.link a").first() ?: row.select("a").first()
+        val sizeCell = row.select("td.size").first() ?: row.select("td").getOrNull(1)
 
         if (linkCell == null) return Pair(null, emptyList())
 
@@ -178,8 +178,28 @@ object FileParsingUtils {
     private fun shouldSkipFile(href: String): Boolean {
         return href == ScrapingConstants.PARENT_DIRECTORY ||
                href == ScrapingConstants.CURRENT_DIRECTORY ||
-               href.endsWith("/") && !href.contains(".") ||
                href.endsWith("/")
     }
 
+    /**
+     * Magnet links with many trackers can slow down metadata fetching in libtorrent.
+     * This trims the tracker list (tr parameters) to a reasonable limit.
+     */
+    fun optimizeMagnetUri(uri: String): String {
+        if (!uri.startsWith("magnet:?")) return uri
+        
+        val parts = uri.split("&")
+        val base = parts[0]
+        val params = parts.drop(1)
+        
+        val trackers = params.filter { it.startsWith("tr=") }
+        val otherParams = params.filter { !it.startsWith("tr=") }
+        
+        if (trackers.size <= TorrentConstants.MAX_TRACKERS_PER_MAGNET) return uri
+        
+        val optimizedTrackers = trackers.take(TorrentConstants.MAX_TRACKERS_PER_MAGNET)
+        val optimizedParams = (otherParams + optimizedTrackers).joinToString("&")
+        
+        return if (optimizedParams.isEmpty()) base else "$base&$optimizedParams"
+    }
 }

@@ -22,7 +22,7 @@ object Constants {
     const val PROGRESS_COMPLETE = 1f
 
 
-    const val EXTRACTION_BUFFER_SIZE = 8192
+    const val EXTRACTION_BUFFER_SIZE = 524288 // 512 KB — reduces SAF IPC call count ~64x vs 8 KB
     const val MAX_ARCHIVE_ENTRIES = 10000
 
     const val KILOBYTE = 1000L

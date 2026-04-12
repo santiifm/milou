@@ -61,7 +61,7 @@ fun DownloadItem(
                 modifier = Modifier.weight(1f)
             ) {
                 // Remove file extension from the clean name
-                val cleanNameWithoutExtension = item.name.substringBeforeLast(".")
+                val cleanNameWithoutExtension = item.name.substringBeforeLast(".", item.name)
                 Text(
                     text = cleanNameWithoutExtension,
                     fontWeight = FontWeight.Medium,
@@ -83,61 +83,71 @@ fun DownloadItem(
 
             Row {
                 assets.availableStatusIcons.forEachIndexed { index, icon ->
-                    val onClick: suspend () -> Unit = when (item.status) {
-                        DownloadStatus.DOWNLOADING -> when (index) {
-                            0 -> { { viewModel.cancelDownload(item.fileName) } } // Cancel Download Button
-                            else -> { {} }
-                        }
-                        DownloadStatus.UNZIPPING -> when (index) {
-                            0 -> { { viewModel.cancelDownload(item.fileName) } } // Cancel Unzipping Button
-                            else -> { {} }
-                        }
-                        DownloadStatus.COMPLETED,
-                        DownloadStatus.STOPPED,
-                        DownloadStatus.FAILED -> when (index) {
-                            0 -> { { viewModel.retryDownload(item.fileName) } } // Retry Button
-                            1 -> { { viewModel.deleteDownloadWithConfirmation(item.fileName, item.status == DownloadStatus.COMPLETED) } } // Delete Button
-                            else -> { {} }
+                    val onClick: suspend () -> Unit = {
+                        when (item.status) {
+                            DownloadStatus.DOWNLOADING -> if (index == 0) viewModel.cancelDownload(item.fileName)
+                            DownloadStatus.COPYING -> { /* no actions during copy */ }
+                            DownloadStatus.UNZIPPING -> if (index == 0) viewModel.cancelDownload(item.fileName)
+                            DownloadStatus.COMPLETED,
+                            DownloadStatus.STOPPED,
+                            DownloadStatus.FAILED -> when (index) {
+                                0 -> viewModel.retryDownload(item.fileName)
+                                1 -> viewModel.deleteDownloadWithConfirmation(item.fileName, true)
+                            }
                         }
                     }
 
                     ActionButton(
                         icon = icon,
-                        onClick = onClick,
-                        item = item,
-                        index = index
+                        onClick = onClick
                     )
                 }
             }
         }
         
-        if (item.status == DownloadStatus.DOWNLOADING || item.status == DownloadStatus.UNZIPPING) {
+        if (item.status == DownloadStatus.COPYING || item.status == DownloadStatus.UNZIPPING) {
             Spacer(modifier = Modifier.width(8.dp))
-            
+
             LinearProgressIndicator(
-            progress = { item.progress },
-            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-            color = ProgressIndicatorDefaults.linearColor,
-            trackColor = ProgressIndicatorDefaults.linearTrackColor,
-            strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                color = ProgressIndicatorDefaults.linearColor,
+                trackColor = ProgressIndicatorDefaults.linearTrackColor,
+                strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
             )
-            
+
+            Text(
+                text = if (item.status == DownloadStatus.UNZIPPING)
+                    stringResource(R.string.extracting_files)
+                else
+                    "Copying to storage...",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else if (item.status == DownloadStatus.DOWNLOADING) {
+            Spacer(modifier = Modifier.width(8.dp))
+
+            LinearProgressIndicator(
+                progress = { item.progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                color = ProgressIndicatorDefaults.linearColor,
+                trackColor = ProgressIndicatorDefaults.linearTrackColor,
+                strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
+            )
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = if (item.status == DownloadStatus.UNZIPPING) {
-                        stringResource(R.string.extracting_files)
-                    } else {
-                        stringResource(R.string.download_speed, item.downloadSpeed)
-                    },
+                    text = stringResource(R.string.download_speed, item.downloadSpeed),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                
+
                 Text(
                     text = "${formatFileSize(item.downloadedBytes)} / ${formatFileSize(item.fileSize)}",
                     style = MaterialTheme.typography.bodySmall,
@@ -157,22 +167,19 @@ fun DownloadItem(
     }
 }
 
-@Composable
 private fun formatFileSize(bytes: Long): String {
     return when {
-        bytes < 1024 -> stringResource(R.string.file_size_bytes, bytes)
-        bytes < 1024 * 1024 -> stringResource(R.string.file_size_kb, bytes / 1024.0)
-        bytes < 1024 * 1024 * 1024 -> stringResource(R.string.file_size_mb, bytes / (1024.0 * 1024.0))
-        else -> stringResource(R.string.file_size_gb, bytes / (1024.0 * 1024.0 * 1024.0))
+        bytes < 1024 -> "$bytes B"
+        bytes < 1024 * 1024 -> String.format("%.2f KB", bytes / 1024.0)
+        bytes < 1024 * 1024 * 1024 -> String.format("%.2f MB", bytes / (1024.0 * 1024.0))
+        else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
     }
 }
 
 @Composable
 private fun ActionButton(
     icon: Int,
-    onClick: suspend () -> Unit,
-    item: DownloadItemModel,
-    index: Int
+    onClick: suspend () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     
@@ -182,17 +189,7 @@ private fun ActionButton(
     ) {
         Icon(
             painter = painterResource(id = icon),
-            contentDescription = when (item.status) {
-                DownloadStatus.DOWNLOADING -> when (index) {
-                    0 -> stringResource(R.string.download_cancel)
-                    else -> stringResource(R.string.download_action)
-                }
-                else -> when (index) {
-                    0 -> stringResource(R.string.download_retry)
-                    1 -> stringResource(R.string.download_delete)
-                    else -> stringResource(R.string.download_action)
-                }
-            },
+            contentDescription = null,
             tint = iconColorFor(icon),
             modifier = Modifier.size(20.dp)
         )
