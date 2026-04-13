@@ -66,7 +66,7 @@ fun SettingsScreen(
                 start = 16.dp,
                 end = 16.dp,
                 top = 16.dp,
-                bottom = if (isLandscape) 100.dp else 16.dp
+                bottom = 80.dp
             )
     ) {
         Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.titleLarge)

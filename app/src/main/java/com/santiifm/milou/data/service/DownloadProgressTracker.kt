@@ -59,9 +59,27 @@ class DownloadProgressTracker @Inject constructor() {
         return _downloads.value
     }
 
+    fun resetDownloadForRetry(fileName: String) {
+        _downloads.update { list ->
+            list.map { item ->
+                if (item.fileName == fileName) {
+                    item.copy(
+                        status = DownloadStatus.DOWNLOADING,
+                        progress = 0f,
+                        downloadSpeed = 0f,
+                        downloadedBytes = 0L
+                    )
+                } else {
+                    item
+                }
+            }
+        }
+    }
+
     fun canRetryDownload(fileName: String): Boolean {
         return _downloads.value.any {
-            it.fileName == fileName && it.status == DownloadStatus.FAILED
+            it.fileName == fileName &&
+            (it.status == DownloadStatus.FAILED || it.status == DownloadStatus.STOPPED)
         }
     }
 

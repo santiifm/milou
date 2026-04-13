@@ -53,6 +53,7 @@ fun SourcesScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
+        contentPadding = PaddingValues(bottom = 64.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {

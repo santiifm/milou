@@ -2,6 +2,7 @@ package com.santiifm.milou.ui.screens.download
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -45,6 +46,7 @@ fun DownloadScreen(
         }
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 64.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(downloads) { item ->

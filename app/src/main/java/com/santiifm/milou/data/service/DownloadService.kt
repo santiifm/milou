@@ -105,7 +105,27 @@ class DownloadService @Inject constructor(
     fun retryDownload(fileName: String) {
         if (!downloadProgressTracker.canRetryDownload(fileName)) return
         val entity = downloadEntities[fileName] ?: return
-        startDownload(entity)
+        // Reset the existing list entry in place — calling startDownload would add a duplicate.
+        downloadProgressTracker.resetDownloadForRetry(fileName)
+        startForegroundService()
+        val job = serviceScope.launch {
+            try {
+                downloadSemaphore.withPermit {
+                    delay(1000L)
+                    if (entity.isTorrent) performTorrentDownload(entity)
+                    else performHttpDownload(entity)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                updateStatus(entity.fileName, DownloadStatus.STOPPED)
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Retry failed for ${entity.fileName}: ${e.message}")
+                updateStatus(entity.fileName, DownloadStatus.FAILED)
+            } finally {
+                downloadJobs.remove(entity.fileName)
+            }
+        }
+        downloadJobs[entity.fileName] = job
     }
 
     fun deleteDownload(fileName: String, deleteFile: Boolean = false) {

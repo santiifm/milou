@@ -23,9 +23,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -41,9 +38,10 @@ import com.santiifm.milou.ui.navigation.NavRoutes
 fun MilouFAB(
     currentRoute: String,
     navController: NavController,
+    isExpanded: Boolean,
+    onToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
 
     val fabSize = 64.dp
     val expandedFabWidth by animateDpAsState(
@@ -82,7 +80,7 @@ fun MilouFAB(
                                 modifier = modifier
                                     .clickable {
                                         navController.navigate(route.route)
-                                        isExpanded = false
+                                        onToggle()
                                     }
                                     .padding(vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -99,9 +97,7 @@ fun MilouFAB(
         }
 
         FloatingActionButton(
-            onClick = {
-                isExpanded = !isExpanded
-            },
+            onClick = onToggle,
             modifier = modifier
                 .width(expandedFabWidth)
                 .height(expandedFabHeight),
