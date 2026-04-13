@@ -1,6 +1,24 @@
 # 7-Zip-JBinding — JNI bridge classes must not be renamed or stripped
 -keep class net.sf.sevenzipjbinding.** { *; }
 
+# libtorrent4j
+-keep class org.libtorrent4j.** { *; }
+-keep interface org.libtorrent4j.** { *; }
+-keepclassmembers class org.libtorrent4j.** { *; }
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+-keepclassmembers class org.libtorrent4j.swig.libtorrent_jni {
+    public static void SwigDirector_*(*);
+    static void SwigDirector_*(*);
+    native <methods>;
+}
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod,SourceFile,LineNumberTable
+-dontwarn org.libtorrent4j.**
+
+# Jsoup optional dependency on RE2J
+-dontwarn com.google.re2j.**
+
 # Add project specific ProGuard rules here.
 # You can control the set of applied configuration files using the
 # proguardFiles setting in build.gradle.
