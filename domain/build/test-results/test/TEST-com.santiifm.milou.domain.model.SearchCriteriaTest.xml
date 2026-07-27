@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.santiifm.milou.domain.model.SearchCriteriaTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-07-27T10:37:16.873Z" hostname="DESKTOP-6D10D9G" time="0.016">
-  <properties/>
-  <testcase name="copying SearchCriteria should work correctly" classname="com.santiifm.milou.domain.model.SearchCriteriaTest" time="0.007"/>
-  <testcase name="default SearchCriteria should have correct values" classname="com.santiifm.milou.domain.model.SearchCriteriaTest" time="0.0"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>

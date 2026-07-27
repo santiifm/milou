@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.5] - Build Fixes
+### What's New!
+- Fixed compilation errors in dependency injection modules.
+- Added missing WorkManager and Hilt dependencies.
+- Resolved issues with SevenZip initialization and DownloadProgressTracker.
+
 ## [0.5.0] - Metadata Engine Milestone
 ### Added
 - **Game Identity Separation**: Decoupled conceptual Games from physical ROM files.

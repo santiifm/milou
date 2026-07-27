@@ -80,6 +80,8 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)
+    implementation(libs.hilt.work)
+    implementation(libs.work.runtime.ktx)
     implementation(libs.androidx.navigation.runtime.ktx)
     implementation(libs.androidx.room.common.jvm)
     implementation(libs.androidx.room.ktx)
@@ -95,6 +97,7 @@ dependencies {
     implementation(libs.libtorrent4j.android.x86.x4)
 
     ksp(libs.hilt.compiler)
+    ksp(libs.hilt.work.compiler)
     ksp(libs.androidx.room.compiler)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

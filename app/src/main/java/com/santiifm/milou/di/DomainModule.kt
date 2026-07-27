@@ -9,6 +9,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import com.santiifm.milou.domain.usecase.DownloadGameUseCase
+import com.santiifm.milou.domain.job.JobManager
 
 @Module
 @InstallIn(SingletonComponent::class)

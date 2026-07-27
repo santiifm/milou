@@ -34,6 +34,7 @@ class DownloadProgressTracker @Inject constructor(
                 when (event) {
                     is DownloadEvent -> handleDownloadEvent(event)
                     is ExtractionEvent -> handleExtractionEvent(event)
+                    else -> {}
                 }
             }
         }

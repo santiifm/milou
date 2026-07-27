@@ -26,7 +26,7 @@ class MilouApplication : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        SevenZip.initSevenZipFromPlatform()
+        
         
         applicationScope.launch {
             jobManager.handleStartupRecovery()

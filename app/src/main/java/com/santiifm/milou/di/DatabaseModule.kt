@@ -20,6 +20,10 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import com.santiifm.milou.data.local.dao.JobDao
+import com.santiifm.milou.domain.job.JobManager
+import com.santiifm.milou.data.service.JobManagerImpl
+import com.santiifm.milou.data.service.EmulatorLauncherImpl
 
 @Module
 @InstallIn(SingletonComponent::class)
