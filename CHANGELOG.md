@@ -2,9 +2,10 @@
 
 ## [1.0.5] - Build Fixes
 ### What's New!
-- Fixed compilation errors in dependency injection modules.
-- Added missing WorkManager and Hilt dependencies.
-- Resolved issues with SevenZip initialization and DownloadProgressTracker.
+- **Dependency Injection**: Fixed missing class imports (like `JobDao`, `JobManager`, `EmulatorLauncherImpl`, and `DownloadGameUseCase`) in Hilt's `DatabaseModule` and `DomainModule`.
+- **Background Tasks Configuration**: Added missing WorkManager and Hilt Work dependencies in Gradle configuration to properly support `DownloadWorker`.
+- **Event Handling Resilience**: Fixed a non-exhaustive `when` statement bug in `DownloadProgressTracker` that could have crashed the app when unexpected EventBus events were received.
+- **Archive Extraction Engine**: Removed a faulty explicit SevenZip initialization that was causing compilation errors; the engine now relies on standard implicit JNI initialization.
 
 ## [0.5.0] - Metadata Engine Milestone
 ### Added
