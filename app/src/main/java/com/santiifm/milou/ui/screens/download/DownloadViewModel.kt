@@ -21,40 +21,40 @@ class DownloadViewModel @Inject constructor(
     private val _showDeleteConfirmation = MutableStateFlow<String?>(null)
     val showDeleteConfirmation: StateFlow<String?> = _showDeleteConfirmation.asStateFlow()
 
-    fun cancelDownload(fileName: String) {
+    fun cancelDownload(id: String) {
         viewModelScope.launch {
-            repository.cancelDownload(fileName)
+            repository.cancelDownload(id)
         }
     }
 
-    fun retryDownload(fileName: String) {
+    fun retryDownload(id: String) {
         viewModelScope.launch { 
-            repository.retryDownload(fileName) 
+            repository.retryDownload(id) 
         }
     }
 
-    fun deleteDownload(fileName: String, deleteFile: Boolean = false) {
+    fun deleteDownload(id: String, deleteFile: Boolean = false) {
         viewModelScope.launch { 
-            repository.deleteDownload(fileName, deleteFile) 
+            repository.deleteDownload(id, deleteFile) 
         }
     }
     
-    fun deleteDownloadWithConfirmation(fileName: String, isCompleted: Boolean) {
+    fun deleteDownloadWithConfirmation(id: String, isCompleted: Boolean) {
         if (isCompleted) {
-            _showDeleteConfirmation.value = fileName
+            _showDeleteConfirmation.value = id
         } else {
-            deleteDownload(fileName, deleteFile = false)
+            deleteDownload(id, deleteFile = false)
         }
     }
     
-    fun confirmDeleteKeepFile(fileName: String) {
+    fun confirmDeleteKeepFile(id: String) {
         _showDeleteConfirmation.value = null
-        deleteDownload(fileName, deleteFile = false)
+        deleteDownload(id, deleteFile = false)
     }
     
-    fun confirmDeleteRemoveFile(fileName: String) {
+    fun confirmDeleteRemoveFile(id: String) {
         _showDeleteConfirmation.value = null
-        deleteDownload(fileName, deleteFile = true)
+        deleteDownload(id, deleteFile = true)
     }
     
     fun cancelDeleteConfirmation() {

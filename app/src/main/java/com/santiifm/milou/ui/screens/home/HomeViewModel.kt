@@ -12,6 +12,11 @@ import com.santiifm.milou.data.repository.DownloadableFileRepository
 import com.santiifm.milou.data.repository.SettingsRepository
 import com.santiifm.milou.data.service.DownloadService
 import com.santiifm.milou.data.state.RescanStateHolder
+import com.santiifm.milou.domain.model.FilterMode
+import com.santiifm.milou.domain.model.Game
+import com.santiifm.milou.domain.model.SearchCriteria
+import com.santiifm.milou.domain.model.SortOrder
+import com.santiifm.milou.domain.usecase.SearchLibraryUseCase
 import com.santiifm.milou.util.ConsoleFormatter
 import com.santiifm.milou.util.StorageHelper
 import com.santiifm.milou.util.ToastUtil
@@ -30,7 +35,8 @@ class HomeViewModel @Inject constructor(
     private val consoleRepository: ConsoleRepository,
     private val downloadService: DownloadService,
     private val settingsRepository: SettingsRepository,
-    private val rescanStateHolder: RescanStateHolder
+    private val rescanStateHolder: RescanStateHolder,
+    private val searchLibraryUseCase: SearchLibraryUseCase
 ) : ViewModel() {
 
     private val _selectedConsoles = MutableStateFlow<Set<String>>(emptySet())
@@ -48,8 +54,8 @@ class HomeViewModel @Inject constructor(
     private val _tagFilterMode = MutableStateFlow(FilterMode.OR)
     val tagFilterMode: StateFlow<FilterMode> = _tagFilterMode
 
-    private val _results = MutableStateFlow<List<DownloadableFileWithTags>>(emptyList())
-    val results: StateFlow<List<DownloadableFileWithTags>> = _results
+    private val _results = MutableStateFlow<List<Game>>(emptyList())
+    val results: StateFlow<List<Game>> = _results
 
     private val _consoles = MutableStateFlow<List<ConsoleEntity>>(emptyList())
     val consoles: StateFlow<List<ConsoleEntity>> = _consoles
@@ -75,20 +81,20 @@ class HomeViewModel @Inject constructor(
                 combine(_searchQuery, _selectedConsoles, _activeTags) { q, c, t -> Triple(q, c, t) },
                 combine(_sortAsc, _tagFilterMode, rescanStateHolder.lastRescanTime) { s, m, r -> Triple(s, m, r) }
             ) { first, second ->
-                FilterParams(
+                SearchCriteria(
                     query = first.first,
                     consoles = first.second,
                     tags = first.third,
-                    sortAsc = second.first,
-                    tagMode = second.second
+                    sortOrder = if (second.first) SortOrder.ASC else SortOrder.DESC,
+                    filterMode = second.second
                 )
-            }.collect { params ->
+            }.collect { criteria ->
                 currentOffset = 0
-                val initialResults = performSearch(params)
+                val initialResults = performSearch(criteria)
                 _results.value = initialResults
                 _hasMoreResults.value = initialResults.size >= pageSize
                 loadConsoles()
-                loadAvailableTags(params.query, params.consoles)
+                loadAvailableTags(criteria.query, criteria.consoles)
             }
         }
     }
@@ -145,16 +151,12 @@ class HomeViewModel @Inject constructor(
         _tagFilterMode.value = if (_tagFilterMode.value == FilterMode.OR) FilterMode.AND else FilterMode.OR
     }
 
-    private suspend fun performSearch(params: FilterParams): List<DownloadableFileWithTags> {
+    private suspend fun performSearch(criteria: SearchCriteria): List<Game> {
         currentOffset = 0
-        return repository.searchFilesWithTags(
-            query = params.query,
-            consoleIds = params.consoles,
-            tags = params.tags,
-            matchAllTags = params.tagMode == FilterMode.AND,
-            sortAsc = params.sortAsc,
-            limit = pageSize,
-            offset = 0
+        return searchLibraryUseCase(
+            criteria = criteria,
+            page = 0,
+            pageSize = pageSize
         )
     }
 
@@ -184,16 +186,18 @@ class HomeViewModel @Inject constructor(
         if (_isLoadingMore.value || !_hasMoreResults.value) return
 
         _isLoadingMore.value = true
-        currentOffset += pageSize
+        val nextPage = (_results.value.size / pageSize)
 
-        val newResults = repository.searchFilesWithTags(
-            query = _searchQuery.value,
-            consoleIds = _selectedConsoles.value,
-            tags = _activeTags.value,
-            matchAllTags = _tagFilterMode.value == FilterMode.AND,
-            sortAsc = _sortAsc.value,
-            limit = pageSize,
-            offset = currentOffset
+        val newResults = searchLibraryUseCase(
+            criteria = SearchCriteria(
+                query = _searchQuery.value,
+                consoles = _selectedConsoles.value,
+                tags = _activeTags.value,
+                filterMode = _tagFilterMode.value,
+                sortOrder = if (_sortAsc.value) SortOrder.ASC else SortOrder.DESC
+            ),
+            page = nextPage,
+            pageSize = pageSize
         )
 
         if (newResults.isEmpty()) {
@@ -206,7 +210,7 @@ class HomeViewModel @Inject constructor(
         _isLoadingMore.value = false
     }
 
-    suspend fun startDownload(fileWithTags: DownloadableFileWithTags, context: Context) {
+    suspend fun startDownload(game: Game, context: Context) {
         val downloadDirectory = settingsRepository.downloadDirectory.first()
         if (downloadDirectory.isEmpty()) {
             ToastUtil.showError(context, "Download directory not configured. Please set a download folder in settings.")
@@ -218,18 +222,18 @@ class HomeViewModel @Inject constructor(
             return
         }
 
-        downloadService.startDownload(fileWithTags.file)
+        val fileEntity = repository.searchFilesWithTags(
+            query = game.title,
+            consoleIds = setOf(game.consoleId),
+            limit = 1
+        ).firstOrNull()?.file
+
+        if (fileEntity != null) {
+            downloadService.startDownload(fileEntity)
+        } else {
+            ToastUtil.showError(context, "Could not find file to download.")
+        }
     }
 }
 
-data class FilterParams(
-    val query: String,
-    val consoles: Set<String>,
-    val tags: Set<String>,
-    val sortAsc: Boolean,
-    val tagMode: FilterMode
-)
-
-enum class FilterMode {
-    AND, OR
-}
+// FilterParams and FilterMode enum can be removed as they are now in domain

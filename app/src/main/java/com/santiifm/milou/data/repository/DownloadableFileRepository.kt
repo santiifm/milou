@@ -6,13 +6,54 @@ import com.santiifm.milou.data.local.entity.DownloadableFileEntity
 import com.santiifm.milou.data.model.CategorizedTags
 import com.santiifm.milou.data.model.DownloadableFileWithTags
 import com.santiifm.milou.data.model.TagCategorizer
+import com.santiifm.milou.domain.model.FilterMode
+import com.santiifm.milou.domain.model.Game
+import com.santiifm.milou.domain.model.SearchCriteria
+import com.santiifm.milou.domain.model.SortOrder
+import com.santiifm.milou.domain.repository.SearchRepository
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class DownloadableFileRepository @Inject constructor(
     private val dao: DownloadableFileDao
-) {
+) : SearchRepository {
+    override suspend fun search(
+        criteria: SearchCriteria,
+        limit: Int,
+        offset: Int
+    ): List<Game> {
+        val downloadableFilesWithTags = searchFilesWithTags(
+            query = criteria.query,
+            consoleIds = criteria.consoles,
+            tags = criteria.tags,
+            matchAllTags = criteria.filterMode == FilterMode.AND,
+            sortAsc = criteria.sortOrder == SortOrder.ASC,
+            limit = limit,
+            offset = offset
+        )
+        return downloadableFilesWithTags.map { it.toDomain() }
+    }
+
+    private fun DownloadableFileWithTags.toDomain(): Game {
+        return Game(
+            id = file.id.toString(),
+            title = file.name,
+            consoleId = file.consoleId,
+            tags = buildList {
+                addAll(tags)
+                if (file.fileExtension.isNotEmpty()) {
+                    add(file.fileExtension.uppercase())
+                }
+            },
+            // Favorites and installed status would be added here in future phases
+            isFavorite = false,
+            isInstalled = false,
+            artworkPath = null,
+            fileSize = file.fileSize
+        )
+    }
+
     suspend fun searchFilesWithTags(
         query: String,
         manufacturer: String? = null,

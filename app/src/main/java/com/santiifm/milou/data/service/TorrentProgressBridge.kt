@@ -1,7 +1,9 @@
 package com.santiifm.milou.data.service
 
 import android.util.Log
-import com.santiifm.milou.data.model.DownloadStatus
+import com.santiifm.milou.domain.model.DownloadStatus
+import com.santiifm.milou.domain.event.DownloadEvent
+import com.santiifm.milou.domain.eventbus.EventBus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -18,40 +20,39 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Bridges libtorrent4j alert callbacks into [DownloadProgressTracker] updates.
+ * Bridges libtorrent4j alert callbacks into [EventBus] updates.
  * Registered as an alert listener on the session in [DownloadForegroundService].
  */
 @Singleton
 class TorrentProgressBridge @Inject constructor(
-    private val progressTracker: DownloadProgressTracker
+    private val eventBus: EventBus
 ) : AlertListener {
 
     private data class TrackedFile(
+        val downloadId: String,
+        val fileName: String,
         val fileIndex: Int,
         val handle: TorrentHandle,
         /** Cached at track time — fileSize never changes, no need to re-call JNI every tick. */
         val expectedSize: Long
     )
 
-    // Single map replaces the old separate `tracked` (fileName→index) and `handles` (fileName→handle).
     private val tracked = mutableMapOf<String, TrackedFile>()
-    // Polling runs on IO — avoids JNI calls on the main thread.
     private val scope = CoroutineScope(Dispatchers.IO + Job())
     private var pollingJob: Job? = null
 
-    fun trackDownload(fileName: String, fileIndex: Int, handle: TorrentHandle) {
-        // Read expectedSize outside the lock to avoid holding the monitor during a JNI call.
+    fun trackDownload(downloadId: String, fileName: String, fileIndex: Int, handle: TorrentHandle) {
         val expectedSize = handle.torrentFile()?.files()?.fileSize(fileIndex) ?: 0L
         synchronized(this) {
-            tracked[fileName] = TrackedFile(fileIndex, handle, expectedSize)
+            tracked[downloadId] = TrackedFile(downloadId, fileName, fileIndex, handle, expectedSize)
             startPolling()
         }
-        Log.d(TAG, "Tracking $fileName at index $fileIndex")
+        Log.d(TAG, "Tracking $fileName with ID $downloadId at index $fileIndex")
     }
 
-    fun untrackDownload(fileName: String, fileIndex: Int) {
+    fun untrackDownload(downloadId: String) {
         synchronized(this) {
-            tracked.remove(fileName)
+            tracked.remove(downloadId)
             if (tracked.isEmpty()) stopPolling()
         }
     }
@@ -72,13 +73,10 @@ class TorrentProgressBridge @Inject constructor(
     }
 
     private fun updateProgress() {
-        // Snapshot under lock so we never hold the monitor during JNI calls. libtorrent alert
-        // callbacks (onTorrentFinished etc.) also acquire this lock, so holding it while calling
-        // native methods risks a deadlock.
         val snapshot: Map<String, TrackedFile>
         synchronized(this) { snapshot = tracked.toMap() }
 
-        snapshot.forEach { (fileName, info) ->
+        snapshot.forEach { (downloadId, info) ->
             val handle = info.handle
             if (!handle.isValid) return@forEach
 
@@ -100,24 +98,22 @@ class TorrentProgressBridge @Inject constructor(
                              state == org.libtorrent4j.TorrentStatus.State.CHECKING_RESUME_DATA
             val isFinished = downloaded >= total
 
-            val currentItem = progressTracker.downloads.value.find { it.fileName == fileName }
-            val currentStatus = currentItem?.status
-
-            when {
-                isFinished && currentStatus != DownloadStatus.COMPLETED &&
-                currentStatus != DownloadStatus.UNZIPPING -> {
-                    progressTracker.updateDownloadStatus(fileName, DownloadStatus.COMPLETED)
+            scope.launch {
+                if (isFinished) {
+                    eventBus.publish(DownloadEvent.StatusChanged(downloadId, DownloadStatus.COMPLETED))
+                } else if (isChecking) {
+                    eventBus.publish(DownloadEvent.StatusChanged(downloadId, DownloadStatus.DOWNLOADING))
                 }
-                isChecking -> {
-                    if (currentStatus != DownloadStatus.DOWNLOADING)
-                        progressTracker.updateDownloadStatus(fileName, DownloadStatus.DOWNLOADING)
-                }
-                !isFinished && !isChecking && currentStatus != DownloadStatus.DOWNLOADING -> {
-                    progressTracker.updateDownloadStatus(fileName, DownloadStatus.DOWNLOADING)
-                }
+                
+                eventBus.publish(
+                    DownloadEvent.Progress(
+                        downloadId = downloadId,
+                        progress = progress,
+                        speed = speedMBs,
+                        downloadedBytes = downloaded
+                    )
+                )
             }
-
-            progressTracker.updateDownloadProgress(fileName, progress, speedMBs, downloaded)
         }
     }
 
@@ -157,12 +153,9 @@ class TorrentProgressBridge @Inject constructor(
         synchronized(this) { snapshot = tracked.toMap() }
         snapshot.entries
             .filter { (_, info) -> info.handle.infoHash() == handle.infoHash() }
-            .forEach { (fn, _) ->
-                val currentItem = progressTracker.downloads.value.find { it.fileName == fn }
-                if (currentItem?.status != DownloadStatus.UNZIPPING &&
-                    currentItem?.status != DownloadStatus.COMPLETED) {
-                    progressTracker.updateDownloadStatus(fn, DownloadStatus.COMPLETED)
-                    Log.i(TAG, "Torrent finished: $fn — Now moving")
+            .forEach { (id, _) ->
+                scope.launch {
+                    eventBus.publish(DownloadEvent.StatusChanged(id, DownloadStatus.COMPLETED))
                 }
             }
     }
@@ -174,7 +167,11 @@ class TorrentProgressBridge @Inject constructor(
         synchronized(this) { snapshot = tracked.toMap() }
         snapshot.entries
             .filter { (_, info) -> info.handle.infoHash() == handle.infoHash() }
-            .forEach { (fn, _) -> progressTracker.updateDownloadStatus(fn, DownloadStatus.FAILED) }
+            .forEach { (id, _) ->
+                scope.launch {
+                    eventBus.publish(DownloadEvent.StatusChanged(id, DownloadStatus.FAILED))
+                }
+            }
     }
 
     private fun onTorrentError(alert: TorrentErrorAlert) {
@@ -184,7 +181,11 @@ class TorrentProgressBridge @Inject constructor(
         synchronized(this) { snapshot = tracked.toMap() }
         snapshot.entries
             .filter { (_, info) -> info.handle.infoHash() == handle.infoHash() }
-            .forEach { (fn, _) -> progressTracker.updateDownloadStatus(fn, DownloadStatus.FAILED) }
+            .forEach { (id, _) ->
+                scope.launch {
+                    eventBus.publish(DownloadEvent.StatusChanged(id, DownloadStatus.FAILED))
+                }
+            }
     }
 
     companion object { private const val TAG = "TorrentProgressBridge" }

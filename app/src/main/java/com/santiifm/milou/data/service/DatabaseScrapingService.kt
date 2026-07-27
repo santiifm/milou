@@ -4,6 +4,8 @@ import com.santiifm.milou.data.local.dao.DownloadableFileDao
 import com.santiifm.milou.data.local.entity.DownloadableFileEntity
 import com.santiifm.milou.data.local.entity.FileTagEntity
 import com.santiifm.milou.data.model.Manufacturer
+import com.santiifm.milou.domain.event.ScrapingEvent
+import com.santiifm.milou.domain.eventbus.EventBus
 import com.santiifm.milou.util.FileParsingUtils
 import com.santiifm.milou.util.HttpHeadersUtils
 import com.santiifm.milou.util.ScrapingConstants
@@ -17,7 +19,8 @@ import javax.inject.Singleton
 @Singleton
 class DatabaseScrapingService @Inject constructor(
     private val downloadableFileDao: DownloadableFileDao,
-    private val torrentScrapingService: TorrentScrapingService
+    private val torrentScrapingService: TorrentScrapingService,
+    private val eventBus: EventBus
 ) {
 
     private suspend fun makeRequest(url: String): org.jsoup.nodes.Document {
@@ -102,14 +105,10 @@ class DatabaseScrapingService @Inject constructor(
     }
 
     /**
-     * Routes each URL entry to the right scraper:
-     *   TORRENT → TorrentScrapingService
-     *   HTTP    → scrapeAndInsertToDatabase (unchanged)
-     *
-     * [onScrapeError] is invoked on [Dispatchers.IO]. Implementations must be thread-safe
-     * (e.g. updating a [kotlinx.coroutines.flow.MutableStateFlow] is fine; touching UI is not).
+     * Routes each URL entry to the right scraper.
+     * Publishes ScrapingEvent.Error on failure.
      */
-    suspend fun scrapeManufacturer(manufacturer: Manufacturer, onScrapeError: (String) -> Unit = {}): Pair<Int, Int> =
+    suspend fun scrapeManufacturer(manufacturer: Manufacturer): Pair<Int, Int> =
         withContext(Dispatchers.IO) {
             var totalFiles = 0
             var totalTags = 0
@@ -124,7 +123,7 @@ class DatabaseScrapingService @Inject constructor(
                         totalFiles += files
                         totalTags += tags
                     } catch (e: Exception) {
-                        onScrapeError("Failed to scrape ${console.name}: ${e.message}")
+                        eventBus.publish(ScrapingEvent.Error(console.id, "Failed to scrape ${console.name}: ${e.message}"))
                     }
                 }
             }

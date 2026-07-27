@@ -1,15 +1,7 @@
 package com.santiifm.milou.data.model
 
 import com.santiifm.milou.R
-
-enum class DownloadStatus {
-    DOWNLOADING,
-    COPYING,
-    UNZIPPING,
-    COMPLETED,
-    FAILED,
-    STOPPED
-}
+import com.santiifm.milou.domain.model.DownloadStatus
 
 data class StatusAssets(
     val currentStatusIcon: Int,
@@ -35,6 +27,7 @@ data class StatusAssets(
 }
 
 data class DownloadItemModel(
+    val id: String,
     val name: String,
     val fileName: String,
     val downloadSpeed: Float, // MB/s

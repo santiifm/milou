@@ -22,15 +22,15 @@ class DownloadRepositoryImpl @Inject constructor(
         downloadService.startDownload(file)
     }
 
-    override suspend fun cancelDownload(fileName: String) {
-        downloadService.cancelDownload(fileName)
+    override suspend fun cancelDownload(id: String) {
+        downloadService.cancelDownload(id)
     }
 
-    override suspend fun retryDownload(fileName: String) {
-        downloadService.retryDownload(fileName)
+    override suspend fun retryDownload(id: String) {
+        downloadService.retryDownload(id)
     }
 
-    override suspend fun deleteDownload(fileName: String, deleteFile: Boolean) {
-        downloadService.deleteDownload(fileName, deleteFile)
+    override suspend fun deleteDownload(id: String, deleteFile: Boolean) {
+        downloadService.deleteDownload(id, deleteFile)
     }
 }

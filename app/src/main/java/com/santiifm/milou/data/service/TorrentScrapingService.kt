@@ -6,7 +6,8 @@ import com.santiifm.milou.data.local.entity.DownloadableFileEntity
 import com.santiifm.milou.data.local.entity.FileTagEntity
 import com.santiifm.milou.data.model.Console
 import com.santiifm.milou.data.model.UrlEntry
-import com.santiifm.milou.data.state.RescanStateHolder
+import com.santiifm.milou.domain.event.ScrapingEvent
+import com.santiifm.milou.domain.eventbus.EventBus
 import com.santiifm.milou.util.FileParsingUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -28,29 +29,27 @@ class TorrentScrapingService @Inject constructor(
     private val metadataFetcher: TorrentMetadataFetcher,
     private val fileIndexer: TorrentFileIndexer,
     private val downloadableFileDao: DownloadableFileDao,
-    private val rescanStateHolder: RescanStateHolder,
-    private val registry: TorrentHandleRegistry
+    private val registry: TorrentHandleRegistry,
+    private val eventBus: EventBus
 ) {
 
     suspend fun scrapeAndInsert(urlEntry: UrlEntry, console: Console): Pair<Int, Int> =
         withContext(Dispatchers.IO) {
             val magnet = urlEntry.url
 
-            rescanStateHolder.setTorrentFetchProgress("Fetching torrent metadata for ${console.name}…")
+            eventBus.publish(ScrapingEvent.Progress(console.id, "Fetching torrent metadata for ${console.name}…"))
 
             val info = try {
                 metadataFetcher.fetch(magnet)
             } catch (e: Exception) {
-                rescanStateHolder.setTorrentFetchProgress("")
                 throw e
             }
 
-            rescanStateHolder.setTorrentFetchProgress("Indexing files for ${console.name}…")
+            eventBus.publish(ScrapingEvent.Progress(console.id, "Indexing files for ${console.name}…"))
 
             val entries = fileIndexer.index(info, magnet, urlEntry.folders)
             if (entries.isEmpty()) {
                 Log.w(TAG, "No files found in torrent")
-                rescanStateHolder.setTorrentFetchProgress("")
                 return@withContext Pair(0, 0)
             }
 
@@ -87,13 +86,9 @@ class TorrentScrapingService @Inject constructor(
                 tags.map { it.copy(fileId = id) }
             }
             downloadableFileDao.insertTags(updatedTags)
-            rescanStateHolder.setTorrentFetchProgress("")
 
             Log.i(TAG, "Inserted ${allFiles.size} files, ${updatedTags.size} tags for ${console.name}")
             
-            // NOTE: We no longer release the handle here.
-            // Keeping it in the session allows immediate starting of downloads.
-
             Pair(allFiles.size, updatedTags.size)
         }
 

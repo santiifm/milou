@@ -4,8 +4,6 @@ import android.content.Context
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import com.santiifm.milou.data.local.dao.ConsoleDao
 import com.santiifm.milou.data.local.dao.ManufacturerDao
 import com.santiifm.milou.data.local.entity.ConsoleEntity
@@ -20,9 +18,12 @@ import com.santiifm.milou.data.service.DatabaseScrapingService
 import com.santiifm.milou.data.service.DefaultSourcesLoader
 import com.santiifm.milou.data.service.TorrentHandleRegistry
 import com.santiifm.milou.data.state.RescanStateHolder
+import com.santiifm.milou.domain.event.ScrapingEvent
+import com.santiifm.milou.domain.eventbus.EventBus
 import com.santiifm.milou.util.FileParsingUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -46,7 +48,8 @@ class SourcesViewModel @Inject constructor(
     private val consoleRepository: ConsoleRepository,
     private val rescanStateHolder: RescanStateHolder,
     private val settingsRepository: SettingsRepository,
-    private val torrentHandleRegistry: TorrentHandleRegistry
+    private val torrentHandleRegistry: TorrentHandleRegistry,
+    private val eventBus: EventBus
 ) : ViewModel() {
 
     val manufacturers = combine(
@@ -90,29 +93,32 @@ class SourcesViewModel @Inject constructor(
     fun loadDefaultSources(context: Context) {
         viewModelScope.launch {
             if (consoleRepository.isDatabaseEmpty()) {
-                rescanStateHolder.setRescanning(true)
+                eventBus.publish(ScrapingEvent.Started("all", "Loading default sources..."))
                 try {
                     defaultSourcesLoader.loadDefaultSourcesToDatabase(context)
-                    var totalFiles = 0; var totalTags = 0; var processedConsoles = 0
                     val currentManufacturers = manufacturers.first()
                     val totalConsoles = currentManufacturers.sumOf { it.consoles.size }
-                    rescanStateHolder.setProgressMessage("Starting initial scrape of $totalConsoles consoles...")
+                    var processedConsoles = 0
+                    
                     for (manufacturer in currentManufacturers) {
                         for (console in manufacturer.consoles) {
                             processedConsoles++
-                            rescanStateHolder.setProgressMessage(
-                                "Processing console $processedConsoles/$totalConsoles: ${console.name}")
-                            val (files, tags) = databaseScrapingService.scrapeManufacturer(
-                                Manufacturer(manufacturer.id, manufacturer.name, listOf(console)),
-                                onScrapeError = { rescanStateHolder.setErrorMessage(it) }
+                            eventBus.publish(
+                                ScrapingEvent.Progress(
+                                    identifier = "all",
+                                    message = "Processing console $processedConsoles/$totalConsoles: ${console.name}",
+                                    current = processedConsoles,
+                                    total = totalConsoles
+                                )
                             )
-                            totalFiles += files; totalTags += tags
+                            databaseScrapingService.scrapeManufacturer(
+                                Manufacturer(manufacturer.id, manufacturer.name, listOf(console))
+                            )
                         }
                     }
-                } finally {
-                    rescanStateHolder.setRescanning(false)
-                    rescanStateHolder.clearProgressMessage()
-                    rescanStateHolder.clearTorrentFetchProgress()
+                    eventBus.publish(ScrapingEvent.Completed("all", 0, 0))
+                } catch (e: Exception) {
+                    eventBus.publish(ScrapingEvent.Error("all", e.message ?: "Unknown error"))
                 }
             }
         }
@@ -120,29 +126,32 @@ class SourcesViewModel @Inject constructor(
 
     fun rescanAllSources() {
         viewModelScope.launch {
-            rescanStateHolder.setRescanning(true)
+            eventBus.publish(ScrapingEvent.Started("all", "Starting rescan..."))
             try {
                 databaseScrapingService.clearAllData()
-                var totalFiles = 0; var totalTags = 0; var processedConsoles = 0
                 val currentManufacturers = manufacturers.first()
                 val totalConsoles = currentManufacturers.sumOf { it.consoles.size }
-                rescanStateHolder.setProgressMessage("Starting rescan of $totalConsoles consoles...")
+                var processedConsoles = 0
+                
                 for (manufacturer in currentManufacturers) {
                     for (console in manufacturer.consoles) {
                         processedConsoles++
-                        rescanStateHolder.setProgressMessage(
-                            "Processing console $processedConsoles/$totalConsoles: ${console.name}")
-                        val (files, tags) = databaseScrapingService.scrapeManufacturer(
-                            Manufacturer(manufacturer.id, manufacturer.name, listOf(console)),
-                            onScrapeError = { rescanStateHolder.setErrorMessage(it) }
+                        eventBus.publish(
+                            ScrapingEvent.Progress(
+                                identifier = "all",
+                                message = "Processing console $processedConsoles/$totalConsoles: ${console.name}",
+                                current = processedConsoles,
+                                total = totalConsoles
+                            )
                         )
-                        totalFiles += files; totalTags += tags
+                        databaseScrapingService.scrapeManufacturer(
+                            Manufacturer(manufacturer.id, manufacturer.name, listOf(console))
+                        )
                     }
                 }
-            } finally {
-                rescanStateHolder.setRescanning(false)
-                rescanStateHolder.clearProgressMessage()
-                rescanStateHolder.clearTorrentFetchProgress()
+                eventBus.publish(ScrapingEvent.Completed("all", 0, 0))
+            } catch (e: Exception) {
+                eventBus.publish(ScrapingEvent.Error("all", e.message ?: "Unknown error"))
             }
         }
     }
@@ -150,10 +159,9 @@ class SourcesViewModel @Inject constructor(
     fun refreshConsole(consoleId: String) {
         if (rescanStateHolder.isRescanning.value) return
         viewModelScope.launch {
-            rescanStateHolder.setRescanning(true)
             try {
                 val console = consoleDao.getConsoleById(consoleId) ?: return@launch
-                rescanStateHolder.setProgressMessage("Refreshing ${console.name}...")
+                eventBus.publish(ScrapingEvent.Started(consoleId, "Refreshing ${console.name}..."))
                 databaseScrapingService.clearConsoleData(consoleId)
                 val consoleModel = Console(
                     id = console.id,
@@ -161,13 +169,11 @@ class SourcesViewModel @Inject constructor(
                     urls = parseUrlEntries(console.urls)
                 )
                 databaseScrapingService.scrapeManufacturer(
-                    Manufacturer(console.manufacturerId, console.manufacturerId, listOf(consoleModel)),
-                    onScrapeError = { rescanStateHolder.setErrorMessage(it) }
+                    Manufacturer(console.manufacturerId, console.manufacturerId, listOf(consoleModel))
                 )
-            } finally {
-                rescanStateHolder.setRescanning(false)
-                rescanStateHolder.clearProgressMessage()
-                rescanStateHolder.clearTorrentFetchProgress()
+                eventBus.publish(ScrapingEvent.Completed(consoleId, 0, 0))
+            } catch (e: Exception) {
+                eventBus.publish(ScrapingEvent.Error(consoleId, e.message ?: "Unknown error"))
             }
         }
     }
@@ -325,24 +331,15 @@ class SourcesViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.updateConsoleDownloadDirectory(consoleId, path) }
     }
 
-    /**
-     * Releases all torrent handles for URLs in [urlsJson] and deletes any copied
-     * .torrent files. Called before deleting a console or manufacturer.
-     */
     private suspend fun releaseTorrentHandlesForConsole(urlsJson: String) {
         parseUrlEntries(urlsJson).forEach { releaseTorrentSource(it.url) }
     }
 
-    /**
-     * Releases the handle for a torrent source URL (magnet or .torrent file path)
-     * and deletes the copied .torrent file from internal storage if present.
-     */
     private suspend fun releaseTorrentSource(url: String) {
         when {
             url.startsWith("magnet:") -> torrentHandleRegistry.releaseHandle(url)
             url.endsWith(".torrent") -> {
                 torrentHandleRegistry.releaseHandle(url)
-                // File.delete() is blocking I/O — must not run on the main dispatcher.
                 withContext(Dispatchers.IO) {
                     File(url).takeIf { it.exists() && it.absolutePath.startsWith(context.filesDir.absolutePath) }?.delete()
                 }

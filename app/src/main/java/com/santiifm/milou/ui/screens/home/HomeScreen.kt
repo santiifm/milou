@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.santiifm.milou.R
+import com.santiifm.milou.domain.model.Game
 import com.santiifm.milou.ui.screens.home.components.RomList
 import com.santiifm.milou.ui.screens.home.components.SearchSection
 import kotlinx.coroutines.launch
@@ -87,13 +88,13 @@ fun HomeScreen(
                 RomList(
                     library = results, 
                     getConsoleName = getConsoleName,
-                    onFileClick = { fileWithTags ->
-                        scope.launch { viewModel.startDownload(fileWithTags, context) }
+                    onFileClick = { game ->
+                        scope.launch { viewModel.startDownload(game, context) }
                         snackbarJob.value?.cancel()
                         snackbarHostState.currentSnackbarData?.dismiss()
                         snackbarJob.value = scope.launch {
                             snackbarHostState.showSnackbar(
-                                message = "Download of \"${fileWithTags.file.name}\" has been started",
+                                message = "Download of \"${game.title}\" has been started",
                                 duration = androidx.compose.material3.SnackbarDuration.Short
                             )
                         }

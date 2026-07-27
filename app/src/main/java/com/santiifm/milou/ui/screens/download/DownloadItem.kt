@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.santiifm.milou.R
 import com.santiifm.milou.data.model.DownloadItemModel
-import com.santiifm.milou.data.model.DownloadStatus
+import com.santiifm.milou.domain.model.DownloadStatus
 import com.santiifm.milou.data.model.getStatusAssets
 import com.santiifm.milou.util.FileParsingUtils
 import com.santiifm.milou.util.iconColorFor
@@ -85,14 +85,14 @@ fun DownloadItem(
                 assets.availableStatusIcons.forEachIndexed { index, icon ->
                     val onClick: suspend () -> Unit = {
                         when (item.status) {
-                            DownloadStatus.DOWNLOADING -> if (index == 0) viewModel.cancelDownload(item.fileName)
+                            DownloadStatus.DOWNLOADING -> if (index == 0) viewModel.cancelDownload(item.id)
                             DownloadStatus.COPYING -> { /* no actions during copy */ }
-                            DownloadStatus.UNZIPPING -> if (index == 0) viewModel.cancelDownload(item.fileName)
+                            DownloadStatus.UNZIPPING -> if (index == 0) viewModel.cancelDownload(item.id)
                             DownloadStatus.COMPLETED,
                             DownloadStatus.STOPPED,
                             DownloadStatus.FAILED -> when (index) {
-                                0 -> viewModel.retryDownload(item.fileName)
-                                1 -> viewModel.deleteDownloadWithConfirmation(item.fileName, true)
+                                0 -> viewModel.retryDownload(item.id)
+                                1 -> viewModel.deleteDownloadWithConfirmation(item.id, true)
                             }
                         }
                     }

@@ -26,7 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.santiifm.milou.R
-import com.santiifm.milou.data.model.DownloadableFileWithTags
+import com.santiifm.milou.domain.model.Game
 import com.santiifm.milou.ui.theme.PurpleAccent
 import com.santiifm.milou.ui.theme.WarmOrange
 
@@ -82,16 +82,15 @@ private fun cleanGameName(name: String): String {
 
 @Composable
 fun RomList(
-    library: List<DownloadableFileWithTags>,
+    library: List<Game>,
     getConsoleName: (String) -> String = { it },
-    onFileClick: (DownloadableFileWithTags) -> Unit = {},
+    onFileClick: (Game) -> Unit = {},
     hasMoreResults: Boolean = false,
     isLoadingMore: Boolean = false,
     onLoadMore: () -> Unit = {}
 ) {
     LazyColumn(contentPadding = PaddingValues(bottom = 80.dp)) {
-        items(library) { romWithTags ->
-            val rom = romWithTags.file
+        items(library) { game ->
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -105,7 +104,7 @@ fun RomList(
                         color = PurpleAccent,
                         shape = RoundedCornerShape(12.dp)
                     )
-                    .clickable { onFileClick(romWithTags) }
+                    .clickable { onFileClick(game) }
                     .padding(12.dp)
             ) {
                 Row(
@@ -114,7 +113,7 @@ fun RomList(
                     verticalAlignment = Alignment.Top
                 ) {
                     Text(
-                        text = cleanGameName(rom.name),
+                        text = cleanGameName(game.title),
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontWeight = FontWeight.Medium
                         ),
@@ -127,15 +126,15 @@ fun RomList(
                         horizontalAlignment = Alignment.End
                     ) {
                         Text(
-                            text = getConsoleName(rom.consoleId),
+                            text = getConsoleName(game.consoleId),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium,
                             maxLines = 2,
                             lineHeight = 16.sp
                         )
-                        if (rom.fileSize > 0) {
+                        if (game.fileSize > 0) {
                             Text(
-                                text = formatFileSize(rom.fileSize),
+                                text = formatFileSize(game.fileSize),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.padding(top = 2.dp)
@@ -144,43 +143,34 @@ fun RomList(
                     }
                 }
                 
-                val hasTags = romWithTags.tags.isNotEmpty() || rom.fileExtension.isNotEmpty()
+                val hasTags = game.tags.isNotEmpty()
                 if (hasTags) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 8.dp)
                     ) {
-                        val allTags = buildList {
-                            addAll(romWithTags.tags)
-                            if (rom.fileExtension.isNotEmpty()) {
-                                add(rom.fileExtension.uppercase())
-                            }
-                        }
-                        
-                        if (allTags.isNotEmpty()) {
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                allTags.forEach { tag ->
-                                    Text(
-                                        text = if (tag == "game" || tag == "miscellaneous") {
-                                            tag.replaceFirstChar { it.uppercase() }
-                                        } else tag,
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            fontSize = 10.sp
-                                        ),
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier
-                                            .background(
-                                                color = WarmOrange.copy(alpha = 0.8f),
-                                                shape = RoundedCornerShape(8.dp)
-                                            )
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            game.tags.forEach { tag ->
+                                Text(
+                                    text = if (tag == "game" || tag == "miscellaneous") {
+                                        tag.replaceFirstChar { it.uppercase() }
+                                    } else tag,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontSize = 10.sp
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier
+                                        .background(
+                                            color = WarmOrange.copy(alpha = 0.8f),
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
                             }
                         }
                     }

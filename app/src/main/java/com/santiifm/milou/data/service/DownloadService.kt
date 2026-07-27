@@ -6,7 +6,10 @@ import android.util.Log
 import androidx.documentfile.provider.DocumentFile
 import com.santiifm.milou.data.local.entity.DownloadableFileEntity
 import com.santiifm.milou.data.model.DownloadItemModel
-import com.santiifm.milou.data.model.DownloadStatus
+import com.santiifm.milou.domain.model.DownloadStatus
+import com.santiifm.milou.domain.event.DownloadEvent
+import com.santiifm.milou.domain.event.ExtractionEvent
+import com.santiifm.milou.domain.eventbus.EventBus
 import com.santiifm.milou.data.repository.SettingsRepository
 import com.santiifm.milou.util.ArchiveUtils
 import com.santiifm.milou.util.ArchiveExtractionUtils
@@ -28,6 +31,7 @@ import java.io.BufferedOutputStream
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -44,7 +48,8 @@ class DownloadService @Inject constructor(
     private val downloadProgressTracker: DownloadProgressTracker,
     private val downloadFileManager: DownloadFileManager,
     private val torrentDownloadService: TorrentDownloadService,
-    private val torrentHandleRegistry: TorrentHandleRegistry
+    private val torrentHandleRegistry: TorrentHandleRegistry,
+    private val eventBus: EventBus
 ) {
     val downloads: StateFlow<List<DownloadItemModel>> = downloadProgressTracker.downloads
 
@@ -67,8 +72,20 @@ class DownloadService @Inject constructor(
     }
 
     fun startDownload(file: DownloadableFileEntity) {
-        downloadProgressTracker.addDownload(downloadFileManager.createDownloadItem(file))
-        downloadEntities[file.fileName] = file
+        val downloadId = UUID.randomUUID().toString()
+        downloadEntities[downloadId] = file
+        
+        serviceScope.launch {
+            eventBus.publish(
+                DownloadEvent.Started(
+                    downloadId = downloadId,
+                    name = file.name,
+                    fileName = file.fileName,
+                    fileSize = file.fileSize
+                )
+            )
+        }
+        
         startForegroundService()
 
         val job = serviceScope.launch {
@@ -77,66 +94,66 @@ class DownloadService @Inject constructor(
                     // Brief delay to allow the foreground service and initial UI state to settle
                     // before network/torrent activity begins.
                     delay(1000L)
-                    if (file.isTorrent) performTorrentDownload(file)
-                    else performHttpDownload(file)
+                    if (file.isTorrent) performTorrentDownload(downloadId, file)
+                    else performHttpDownload(downloadId, file)
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
-                updateStatus(file.fileName, DownloadStatus.STOPPED)
+                updateStatus(downloadId, DownloadStatus.STOPPED)
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Download failed for ${file.fileName}: ${e.message}")
-                updateStatus(file.fileName, DownloadStatus.FAILED)
+                updateStatus(downloadId, DownloadStatus.FAILED)
             } finally {
-                downloadJobs.remove(file.fileName)
+                downloadJobs.remove(downloadId)
             }
         }
-        downloadJobs[file.fileName] = job
+        downloadJobs[downloadId] = job
     }
 
-    fun cancelDownload(fileName: String) {
-        downloadJobs.remove(fileName)?.cancel()
-        val entity = downloadEntities[fileName] ?: return
+    fun cancelDownload(id: String) {
+        downloadJobs.remove(id)?.cancel()
+        val entity = downloadEntities[id] ?: return
         serviceScope.launch {
-            if (entity.isTorrent) torrentDownloadService.cancelDownload(entity)
-            else updateStatus(fileName, DownloadStatus.STOPPED)
+            if (entity.isTorrent) torrentDownloadService.cancelDownload(id, entity)
+            else updateStatus(id, DownloadStatus.STOPPED)
         }
     }
 
-    fun retryDownload(fileName: String) {
-        if (!downloadProgressTracker.canRetryDownload(fileName)) return
-        val entity = downloadEntities[fileName] ?: return
+    fun retryDownload(id: String) {
+        if (!downloadProgressTracker.canRetryDownload(id)) return
+        val entity = downloadEntities[id] ?: return
         // Reset the existing list entry in place — calling startDownload would add a duplicate.
-        downloadProgressTracker.resetDownloadForRetry(fileName)
+        downloadProgressTracker.resetDownloadForRetry(id)
         startForegroundService()
         val job = serviceScope.launch {
             try {
                 downloadSemaphore.withPermit {
                     delay(1000L)
-                    if (entity.isTorrent) performTorrentDownload(entity)
-                    else performHttpDownload(entity)
+                    if (entity.isTorrent) performTorrentDownload(id, entity)
+                    else performHttpDownload(id, entity)
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
-                updateStatus(entity.fileName, DownloadStatus.STOPPED)
+                updateStatus(id, DownloadStatus.STOPPED)
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Retry failed for ${entity.fileName}: ${e.message}")
-                updateStatus(entity.fileName, DownloadStatus.FAILED)
+                updateStatus(id, DownloadStatus.FAILED)
             } finally {
-                downloadJobs.remove(entity.fileName)
+                downloadJobs.remove(id)
             }
         }
-        downloadJobs[entity.fileName] = job
+        downloadJobs[id] = job
     }
 
-    fun deleteDownload(fileName: String, deleteFile: Boolean = false) {
-        downloadJobs.remove(fileName)?.cancel()
-        val entity = downloadEntities.remove(fileName)
-        val extracted = extractedFilesMap.remove(fileName) ?: emptyList()
+    fun deleteDownload(id: String, deleteFile: Boolean = false) {
+        downloadJobs.remove(id)?.cancel()
+        val entity = downloadEntities.remove(id)
+        val extracted = extractedFilesMap.remove(id) ?: emptyList()
         serviceScope.launch {
-            if (entity?.isTorrent == true) torrentDownloadService.cancelDownload(entity)
+            if (entity?.isTorrent == true) torrentDownloadService.cancelDownload(id, entity)
             if (deleteFile && entity != null) downloadFileManager.deleteFileByName(entity, true, extracted)
         }
-        downloadProgressTracker.removeDownload(fileName)
+        downloadProgressTracker.removeDownload(id)
     }
 
     fun cancelAllDownloads() {
@@ -146,25 +163,25 @@ class DownloadService @Inject constructor(
 
     fun getDownloads(): List<DownloadItemModel> = downloadProgressTracker.getDownloads()
 
-    private suspend fun performTorrentDownload(file: DownloadableFileEntity) {
+    private suspend fun performTorrentDownload(downloadId: String, file: DownloadableFileEntity) {
         Log.d(TAG, "Starting torrent download for ${file.fileName}")
-        torrentDownloadService.startDownload(file)
+        torrentDownloadService.startDownload(downloadId, file)
 
         // Collect just this file's status as a distinct flow instead of polling the full
         // downloads list on every tick — O(1) vs O(n) and no busy-wait sleep.
         val finalStatus = downloadProgressTracker.downloads
-            .map { list -> list.find { it.fileName == file.fileName }?.status }
+            .map { list -> list.find { it.id == downloadId }?.status }
             .distinctUntilChanged()
             .first { it == DownloadStatus.COMPLETED || it == DownloadStatus.FAILED || it == DownloadStatus.STOPPED }
 
         when (finalStatus) {
             DownloadStatus.FAILED  -> { Log.e(TAG, "Torrent FAILED: ${file.fileName}"); return }
             DownloadStatus.STOPPED -> { Log.i(TAG, "Torrent STOPPED: ${file.fileName}"); return }
-            else -> moveTorrentFile(file)
+            else -> moveTorrentFile(downloadId, file)
         }
     }
 
-    private suspend fun moveTorrentFile(file: DownloadableFileEntity) {
+    private suspend fun moveTorrentFile(downloadId: String, file: DownloadableFileEntity) {
         try {
             val downloadDirUri = downloadFileManager.getDownloadDirectoryUri(file)
             if (downloadDirUri == android.net.Uri.EMPTY)
@@ -205,21 +222,23 @@ class DownloadService @Inject constructor(
                 // Extract directly from cache — skips writing the compressed archive to SAF entirely.
                 // Flow: cacheDir/torrent_data/ → extraction_temp/ → SAF destination
                 Log.d(TAG, "Extracting torrent archive directly from cache: ${internalFile.name}")
-                updateStatus(file.fileName, DownloadStatus.UNZIPPING)
+                eventBus.publish(ExtractionEvent.Started(downloadId, internalFile.absolutePath))
                 val extracted = archiveExtractorService.extractArchiveFile(
-                    context, internalFile, downloadDirUri, subPath
+                    context, internalFile, downloadDirUri, downloadId, subPath
                 )
                 if (extracted.isNotEmpty()) {
-                    extractedFilesMap[file.fileName] = extracted
+                    extractedFilesMap[downloadId] = extracted
+                    eventBus.publish(ExtractionEvent.Completed(downloadId, extracted))
                 } else {
                     Log.w(TAG, "Extraction produced no files for ${file.fileName}")
+                    eventBus.publish(ExtractionEvent.Failed(downloadId, "No files extracted"))
                 }
             } else {
                 // Non-archive or auto-unzip disabled: copy directly from cache to SAF
                 val documentFile = downloadFileManager.createDocumentFile(file, downloadDirUri.toString(), subPath)
                     ?: throw Exception("Failed to create destination file in storage.")
                 Log.d(TAG, "Copying torrent file to SAF: ${documentFile.uri}")
-                updateStatus(file.fileName, DownloadStatus.COPYING)
+                updateStatus(downloadId, DownloadStatus.COPYING)
                 context.contentResolver.openOutputStream(documentFile.uri)?.use { out ->
                     BufferedOutputStream(out, Constants.EXTRACTION_BUFFER_SIZE).use { buffOut ->
                         internalFile.inputStream().use { it.copyTo(buffOut, Constants.EXTRACTION_BUFFER_SIZE) }
@@ -232,23 +251,23 @@ class DownloadService @Inject constructor(
             internalFile.parentFile?.takeIf { it.list()?.isEmpty() == true }?.delete()
 
             // Release handle only when no sibling files still downloading from same torrent
-            torrentDownloadService.finishDownload(file)
+            torrentDownloadService.finishDownload(downloadId, file)
 
             Log.i(TAG, "Torrent processed successfully: ${file.fileName}")
-            updateStatus(file.fileName, DownloadStatus.COMPLETED)
+            eventBus.publish(DownloadEvent.Completed(downloadId, file.fileName))
             checkServiceLifecycle()
 
         } catch (e: Exception) {
             Log.e(TAG, "Error processing torrent file for ${file.fileName}: ${e.message}", e)
-            updateStatus(file.fileName, DownloadStatus.FAILED)
+            updateStatus(downloadId, DownloadStatus.FAILED)
         }
     }
 
-    private suspend fun performHttpDownload(file: DownloadableFileEntity) {
+    private suspend fun performHttpDownload(downloadId: String, file: DownloadableFileEntity) {
         repeat(3) { attempt ->
             try {
                 if (attempt > 0) delay(2000L * attempt)
-                performHttpDownloadAttempt(file)
+                performHttpDownloadAttempt(downloadId, file)
                 return
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -259,7 +278,7 @@ class DownloadService @Inject constructor(
         }
     }
 
-    private suspend fun performHttpDownloadAttempt(file: DownloadableFileEntity) {
+    private suspend fun performHttpDownloadAttempt(downloadId: String, file: DownloadableFileEntity) {
         val downloadDirUri = downloadFileManager.getDownloadDirectoryUri(file)
         if (downloadDirUri == android.net.Uri.EMPTY)
             throw Exception("Download directory not configured or no longer accessible.")
@@ -282,16 +301,16 @@ class DownloadService @Inject constructor(
             outputStream = downloadFileManager.getOutputStream(documentFile)
                 ?: throw Exception("Failed to open output stream for ${documentFile.uri}")
 
-            streamWithProgress(inputStream, outputStream, file, speedLimit, contentLength)
-            handlePostDownload(file, documentFile, subPath)
+            streamWithProgress(downloadId, inputStream, outputStream, file, speedLimit, contentLength)
+            handlePostDownload(downloadId, file, documentFile, subPath)
 
         } catch (e: kotlinx.coroutines.CancellationException) {
             documentFile?.let { downloadFileManager.deleteFile(it) }
-            updateStatus(file.fileName, DownloadStatus.STOPPED)
+            updateStatus(downloadId, DownloadStatus.STOPPED)
             throw e
         } catch (e: Exception) {
             documentFile?.let { downloadFileManager.deleteFile(it) }
-            updateStatus(file.fileName, DownloadStatus.FAILED)
+            updateStatus(downloadId, DownloadStatus.FAILED)
             throw e
         } finally {
             speedLimitJob.cancel()
@@ -301,6 +320,7 @@ class DownloadService @Inject constructor(
     }
 
     private suspend fun streamWithProgress(
+        downloadId: String,
         input: InputStream,
         output: OutputStream,
         file: DownloadableFileEntity,
@@ -318,8 +338,8 @@ class DownloadService @Inject constructor(
         while (true) {
             val bytesRead = input.read(buffer)
             if (bytesRead == -1) break
-            if (downloadJobs[file.fileName]?.isCancelled == true) {
-                updateStatus(file.fileName, DownloadStatus.STOPPED)
+            if (downloadJobs[downloadId]?.isCancelled == true) {
+                updateStatus(downloadId, DownloadStatus.STOPPED)
                 return
             }
 
@@ -344,7 +364,15 @@ class DownloadService @Inject constructor(
                 val speedMBs = downloadSpeedController.calculateSpeed(downloaded - lastDownloaded, elapsed)
                     .takeIf { it > 0 }
                     ?: downloadSpeedController.calculateSpeed(downloaded, (now - startTime) / 1000f)
-                downloadProgressTracker.updateDownloadProgress(file.fileName, progress, speedMBs, downloaded)
+                
+                eventBus.publish(
+                    DownloadEvent.Progress(
+                        downloadId = downloadId,
+                        progress = progress,
+                        speed = speedMBs,
+                        downloadedBytes = downloaded
+                    )
+                )
                 lastUpdateTime = now
                 lastDownloaded = downloaded
             }
@@ -352,35 +380,40 @@ class DownloadService @Inject constructor(
     }
 
     private suspend fun handlePostDownload(
+        downloadId: String,
         file: DownloadableFileEntity,
         documentFile: DocumentFile,
         subPath: String
     ) {
         if (!ArchiveUtils.isExtractable(file.fileExtension) || !settingsRepository.autoUnzip.first()) {
-            updateStatus(file.fileName, DownloadStatus.COMPLETED)
+            eventBus.publish(DownloadEvent.Completed(downloadId, documentFile.uri.toString()))
             checkServiceLifecycle()
             return
         }
 
-        updateStatus(file.fileName, DownloadStatus.UNZIPPING)
+        eventBus.publish(ExtractionEvent.Started(downloadId, documentFile.uri.toString()))
         try {
             val extracted = archiveExtractorService.extractArchive(
-                context, documentFile.uri, downloadFileManager.getDownloadDirectoryUri(file), subPath)
+                context, documentFile.uri, downloadFileManager.getDownloadDirectoryUri(file), downloadId, subPath
+            )
             if (extracted.isNotEmpty()) {
                 downloadFileManager.deleteFile(documentFile)
-                extractedFilesMap[file.fileName] = extracted
+                extractedFilesMap[downloadId] = extracted
+                eventBus.publish(ExtractionEvent.Completed(downloadId, extracted))
             } else {
                 Log.w(TAG, "Extraction produced no files for ${file.fileName}")
+                eventBus.publish(ExtractionEvent.Failed(downloadId, "No files extracted"))
             }
         } catch (e: Exception) {
             Log.e(TAG, "Extraction failed for ${file.fileName}: ${e.message}")
+            eventBus.publish(ExtractionEvent.Failed(downloadId, e.message ?: "Unknown error"))
         }
-        updateStatus(file.fileName, DownloadStatus.COMPLETED)
+        eventBus.publish(DownloadEvent.Completed(downloadId, file.fileName))
         checkServiceLifecycle()
     }
 
-    private suspend fun updateStatus(fileName: String, status: DownloadStatus) =
-        downloadProgressTracker.updateDownloadStatus(fileName, status)
+    private suspend fun updateStatus(id: String, status: DownloadStatus) =
+        eventBus.publish(DownloadEvent.StatusChanged(id, status))
 
     private fun startForegroundService() {
         context.startForegroundService(Intent(context, DownloadForegroundService::class.java).apply {

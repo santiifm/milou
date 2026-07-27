@@ -1,13 +1,21 @@
 package com.santiifm.milou.data.state
 
+import com.santiifm.milou.domain.event.ScrapingEvent
+import com.santiifm.milou.domain.eventbus.EventBus
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class RescanStateHolder @Inject constructor() {
+class RescanStateHolder @Inject constructor(
+    private val eventBus: EventBus
+) {
     private val _isRescanning = MutableStateFlow(false)
     val isRescanning: StateFlow<Boolean> = _isRescanning.asStateFlow()
 
@@ -22,6 +30,43 @@ class RescanStateHolder @Inject constructor() {
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    init {
+        scope.launch {
+            eventBus.events.collect { event ->
+                if (event is ScrapingEvent) {
+                    handleScrapingEvent(event)
+                }
+            }
+        }
+    }
+
+    private fun handleScrapingEvent(event: ScrapingEvent) {
+        when (event) {
+            is ScrapingEvent.Started -> {
+                setRescanning(true)
+                setProgressMessage(event.message)
+                setErrorMessage(null)
+            }
+            is ScrapingEvent.Progress -> {
+                if (event.message.contains("torrent", ignoreCase = true)) {
+                    setTorrentFetchProgress(event.message)
+                } else {
+                    setProgressMessage(event.message)
+                }
+            }
+            is ScrapingEvent.Completed -> {
+                setRescanning(false)
+                clearProgressMessage()
+                clearTorrentFetchProgress()
+            }
+            is ScrapingEvent.Error -> {
+                setErrorMessage(event.errorMessage)
+            }
+        }
+    }
 
     fun setRescanning(value: Boolean) { 
         _isRescanning.value = value 

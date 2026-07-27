@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.santiifm.milou.ui.screens.home.FilterMode
+import com.santiifm.milou.domain.model.FilterMode
 import com.santiifm.milou.ui.theme.LightningBlue
 import com.santiifm.milou.ui.theme.PurpleAccent
 

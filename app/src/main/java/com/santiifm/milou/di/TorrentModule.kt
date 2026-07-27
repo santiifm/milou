@@ -4,7 +4,7 @@ import com.santiifm.milou.data.service.TorrentFileIndexer
 import com.santiifm.milou.data.service.TorrentHandleRegistry
 import com.santiifm.milou.data.service.TorrentMetadataFetcher
 import com.santiifm.milou.data.service.TorrentProgressBridge
-import com.santiifm.milou.data.service.DownloadProgressTracker
+import com.santiifm.milou.domain.eventbus.EventBus
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -56,6 +56,6 @@ object TorrentModule {
     @Provides
     @Singleton
     fun provideTorrentProgressBridge(
-        progressTracker: DownloadProgressTracker
-    ): TorrentProgressBridge = TorrentProgressBridge(progressTracker)
+        eventBus: EventBus
+    ): TorrentProgressBridge = TorrentProgressBridge(eventBus)
 }

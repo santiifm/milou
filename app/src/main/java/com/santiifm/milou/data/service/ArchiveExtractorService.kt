@@ -3,10 +3,15 @@ package com.santiifm.milou.data.service
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import com.santiifm.milou.domain.event.ExtractionEvent
+import com.santiifm.milou.domain.eventbus.EventBus
 import com.santiifm.milou.util.ArchiveExtractionUtils
 import com.santiifm.milou.util.Constants
 import com.santiifm.milou.util.StorageHelper
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.sf.sevenzipjbinding.ExtractAskMode
 import net.sf.sevenzipjbinding.ExtractOperationResult
@@ -29,33 +34,35 @@ import javax.inject.Singleton
 private const val TAG = "ArchiveExtractorService"
 
 @Singleton
-class ArchiveExtractorService @Inject constructor() {
+class ArchiveExtractorService @Inject constructor(
+    private val eventBus: EventBus
+) {
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
-     * Extracts an archive from a SAF URI (used for HTTP downloads where the file
-     * lands in SAF storage directly).
+     * Extracts an archive from a SAF URI.
      */
     suspend fun extractArchive(
         context: Context,
         archiveUri: Uri,
         destinationUri: Uri,
-        subPath: String = "",
-        onProgress: (Float) -> Unit = {}
+        operationId: String,
+        subPath: String = ""
     ): List<String> = withContext(Dispatchers.IO) {
         val extractDir = File(context.cacheDir, "extraction_temp/${System.currentTimeMillis()}")
         extractDir.mkdirs()
 
         try {
-            // Open the SAF archive as a seekable FileChannel — no need to copy the archive
-            // to a temp file first, saving potentially gigabytes of cache space.
             val pfd = context.contentResolver.openFileDescriptor(archiveUri, "r")
                 ?: return@withContext emptyList<String>().also {
                     Log.e(TAG, "Could not open file descriptor for $archiveUri")
+                    publishError(operationId, "Could not open file descriptor")
                 }
 
             val cachedFiles = pfd.use {
                 FileInputStream(it.fileDescriptor).use { fis ->
-                    extractToCache(fis, extractDir, onProgress)
+                    extractToCache(fis, extractDir, operationId)
                 }
             }
             if (cachedFiles.isEmpty()) return@withContext emptyList<String>()
@@ -63,6 +70,7 @@ class ArchiveExtractorService @Inject constructor() {
             copyToSaf(context, cachedFiles, destinationUri, subPath)
         } catch (e: Throwable) {
             Log.e(TAG, "Extraction failed: ${e.message}", e)
+            publishError(operationId, e.message ?: "Unknown error")
             emptyList()
         } finally {
             extractDir.deleteRecursively()
@@ -70,29 +78,28 @@ class ArchiveExtractorService @Inject constructor() {
     }
 
     /**
-     * Extracts an archive that is already on the local filesystem (used for torrent
-     * downloads where the file lives in cacheDir). Avoids writing the compressed
-     * archive to SAF at all — extracts straight to a temp dir then copies to SAF.
+     * Extracts an archive that is already on the local filesystem.
      */
     suspend fun extractArchiveFile(
         context: Context,
         archiveFile: File,
         destinationUri: Uri,
-        subPath: String = "",
-        onProgress: (Float) -> Unit = {}
+        operationId: String,
+        subPath: String = ""
     ): List<String> = withContext(Dispatchers.IO) {
         val extractDir = File(context.cacheDir, "extraction_temp/${System.currentTimeMillis()}")
         extractDir.mkdirs()
 
         try {
             val cachedFiles = FileInputStream(archiveFile).use { fis ->
-                extractToCache(fis, extractDir, onProgress)
+                extractToCache(fis, extractDir, operationId)
             }
             if (cachedFiles.isEmpty()) return@withContext emptyList<String>()
 
             copyToSaf(context, cachedFiles, destinationUri, subPath)
         } catch (e: Throwable) {
             Log.e(TAG, "Extraction of ${archiveFile.name} failed: ${e.message}", e)
+            publishError(operationId, e.message ?: "Unknown error")
             emptyList()
         } finally {
             extractDir.deleteRecursively()
@@ -102,14 +109,12 @@ class ArchiveExtractorService @Inject constructor() {
     private fun extractToCache(
         fis: FileInputStream,
         extractDir: File,
-        onProgress: (Float) -> Unit
+        operationId: String
     ): List<File> {
         val results = mutableListOf<File>()
         val channel = fis.channel
         val channelSize = channel.size()
 
-        // Implement IInStream over a FileChannel so SevenZip can seek through the archive
-        // without requiring a copy to a RandomAccessFile.
         val inStream = object : IInStream {
             override fun read(data: ByteArray): Int {
                 val n = channel.read(ByteBuffer.wrap(data))
@@ -127,9 +132,7 @@ class ArchiveExtractorService @Inject constructor() {
                 return channel.position()
             }
 
-            override fun close() {
-                // The channel is closed by the FileInputStream.use block
-            }
+            override fun close() {}
         }
 
         try {
@@ -168,7 +171,10 @@ class ArchiveExtractorService @Inject constructor() {
 
                         if (!skip && result == ExtractOperationResult.OK) {
                             dest?.let { results.add(it); done++ }
-                            onProgress(if (total > 0) done.toFloat() / total else 1f)
+                            val progress = if (total > 0) done.toFloat() / total else 1f
+                            scope.launch {
+                                eventBus.publish(ExtractionEvent.Progress(operationId, progress))
+                            }
                         } else if (!skip) {
                             Log.w(TAG, "Entry result: $result for ${dest?.name}")
                         }
@@ -182,6 +188,7 @@ class ArchiveExtractorService @Inject constructor() {
             }
         } catch (e: SevenZipException) {
             Log.e(TAG, "7-zip extraction error: ${e.message}")
+            publishError(operationId, e.message ?: "7-zip error")
         }
 
         return results
@@ -219,5 +226,11 @@ class ArchiveExtractorService @Inject constructor() {
         }
 
         return copied
+    }
+
+    private fun publishError(operationId: String, message: String) {
+        scope.launch {
+            eventBus.publish(ExtractionEvent.Failed(operationId, message))
+        }
     }
 }

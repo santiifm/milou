@@ -3,7 +3,9 @@ package com.santiifm.milou.data.service
 import android.content.Context
 import android.util.Log
 import com.santiifm.milou.data.local.entity.DownloadableFileEntity
-import com.santiifm.milou.data.model.DownloadStatus
+import com.santiifm.milou.domain.model.DownloadStatus
+import com.santiifm.milou.domain.event.DownloadEvent
+import com.santiifm.milou.domain.eventbus.EventBus
 import com.santiifm.milou.util.StorageHelper
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -22,11 +24,11 @@ import javax.inject.Singleton
  */
 @Singleton
 class TorrentDownloadService @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val registry: TorrentHandleRegistry,
     private val progressBridge: TorrentProgressBridge,
     private val downloadFileManager: DownloadFileManager,
-    private val progressTracker: DownloadProgressTracker
+    private val eventBus: EventBus
 ) {
     data class TorrentFileInfo(val relativePath: String, val expectedSize: Long)
 
@@ -36,7 +38,7 @@ class TorrentDownloadService @Inject constructor(
 
     fun getFileInfo(fileName: String): TorrentFileInfo? = fileInfoCache[fileName]
 
-    suspend fun startDownload(file: DownloadableFileEntity) = withContext(Dispatchers.IO) {
+    suspend fun startDownload(downloadId: String, file: DownloadableFileEntity) = withContext(Dispatchers.IO) {
         val magnet = file.torrentMagnet
             ?: throw IllegalArgumentException("No torrentMagnet on ${file.fileName}")
         val fileIndex = file.torrentFileIndex
@@ -46,19 +48,19 @@ class TorrentDownloadService @Inject constructor(
             registry.getOrFetch(magnet)
         } catch (e: TorrentMetadataTimeoutException) {
             Log.e(TAG, "Metadata timeout: ${e.message}")
-            progressTracker.updateDownloadStatus(file.fileName, DownloadStatus.FAILED)
+            eventBus.publish(DownloadEvent.StatusChanged(downloadId, DownloadStatus.FAILED))
             return@withContext
         }
 
         val torrentInfo = handle.torrentFile() ?: run {
             Log.e(TAG, "No TorrentInfo for ${file.fileName}")
-            progressTracker.updateDownloadStatus(file.fileName, DownloadStatus.FAILED)
+            eventBus.publish(DownloadEvent.StatusChanged(downloadId, DownloadStatus.FAILED))
             return@withContext
         }
 
         if (fileIndex >= torrentInfo.numFiles()) {
             Log.e(TAG, "fileIndex $fileIndex out of range")
-            progressTracker.updateDownloadStatus(file.fileName, DownloadStatus.FAILED)
+            eventBus.publish(DownloadEvent.StatusChanged(downloadId, DownloadStatus.FAILED))
             return@withContext
         }
 
@@ -68,7 +70,7 @@ class TorrentDownloadService @Inject constructor(
         val finalDir = StorageHelper.createDirectory(context, downloadDirUri.toString(), subPath)
         if (finalDir == null) {
             Log.e(TAG, "Could not create/access download directory")
-            progressTracker.updateDownloadStatus(file.fileName, DownloadStatus.FAILED)
+            eventBus.publish(DownloadEvent.StatusChanged(downloadId, DownloadStatus.FAILED))
             return@withContext
         }
 
@@ -79,7 +81,7 @@ class TorrentDownloadService @Inject constructor(
         fileInfoCache[file.fileName] = TorrentFileInfo(relativePath, expectedSize)
 
         // Track first so getTrackedFileIndicesForHandle includes this file when building priorities.
-        progressBridge.trackDownload(file.fileName, fileIndex, handle)
+        progressBridge.trackDownload(downloadId, file.fileName, fileIndex, handle)
 
         // Build merged priorities: IGNORE all files, then DEFAULT for every file currently tracked
         // from this torrent (including the one we just added). This prevents concurrent startDownload
@@ -104,13 +106,12 @@ class TorrentDownloadService @Inject constructor(
         Log.i(TAG, "Torrent resumed for ${file.fileName} — TorrentProgressBridge takes over")
     }
 
-    suspend fun finishDownload(file: DownloadableFileEntity) = withContext(Dispatchers.IO) {
+    suspend fun finishDownload(downloadId: String, file: DownloadableFileEntity) = withContext(Dispatchers.IO) {
         val magnet = file.torrentMagnet ?: return@withContext
-        val fileIndex = file.torrentFileIndex ?: return@withContext
 
         fileInfoCache.remove(file.fileName)
         val handle = registry.getCachedHandle(magnet)
-        progressBridge.untrackDownload(file.fileName, fileIndex)
+        progressBridge.untrackDownload(downloadId)
 
         val stillTracked = if (handle != null) progressBridge.countTrackedForHandle(handle) else 0
         if (stillTracked == 0) {
@@ -121,13 +122,12 @@ class TorrentDownloadService @Inject constructor(
         }
     }
 
-    suspend fun cancelDownload(file: DownloadableFileEntity) = withContext(Dispatchers.IO) {
+    suspend fun cancelDownload(downloadId: String, file: DownloadableFileEntity) = withContext(Dispatchers.IO) {
         val magnet = file.torrentMagnet ?: return@withContext
-        val fileIndex = file.torrentFileIndex ?: return@withContext
 
         fileInfoCache.remove(file.fileName)
         val handle = registry.getCachedHandle(magnet)
-        progressBridge.untrackDownload(file.fileName, fileIndex)
+        progressBridge.untrackDownload(downloadId)
 
         val remainingForThisTorrent = if (handle != null) progressBridge.countTrackedForHandle(handle) else 0
         if (remainingForThisTorrent == 0) {
@@ -137,7 +137,7 @@ class TorrentDownloadService @Inject constructor(
             Log.i(TAG, "Stopped tracking ${file.fileName}, handle kept alive ($remainingForThisTorrent files still active)")
         }
 
-        progressTracker.updateDownloadStatus(file.fileName, DownloadStatus.STOPPED)
+        eventBus.publish(DownloadEvent.StatusChanged(downloadId, DownloadStatus.STOPPED))
     }
 
     companion object { private const val TAG = "TorrentDownloadService" }

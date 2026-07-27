@@ -12,6 +12,8 @@ import com.santiifm.milou.data.repository.DownloadRepositoryImpl
 import com.santiifm.milou.data.repository.SettingsRepository
 import com.santiifm.milou.data.repository.SettingsRepositoryImpl
 import com.santiifm.milou.data.service.ArchiveExtractorService
+import com.santiifm.milou.data.repository.DownloadableFileRepository
+import com.santiifm.milou.domain.repository.SearchRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -27,7 +29,11 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): MilouDatabase =
         Room.databaseBuilder(context, MilouDatabase::class.java, "milou_db")
-            .addMigrations(MilouDatabase.MIGRATION_1_2)
+            .addMigrations(
+                MilouDatabase.MIGRATION_1_2, 
+                MilouDatabase.MIGRATION_2_3, 
+                MilouDatabase.MIGRATION_3_4
+            )
             .build()
 
     @Provides
@@ -53,5 +59,24 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideArchiveExtractorService(): ArchiveExtractorService = ArchiveExtractorService()
+    fun provideSearchRepository(downloadableFileRepository: DownloadableFileRepository): SearchRepository = downloadableFileRepository
+
+    @Provides
+    @Singleton
+    fun provideJobDao(db: MilouDatabase): JobDao = db.jobDao()
+
+    @Provides
+    @Singleton
+    fun provideJobManager(jobManagerImpl: JobManagerImpl): JobManager = jobManagerImpl
+
+    @Provides
+    @Singleton
+    fun provideGameLauncher(emulatorLauncherImpl: EmulatorLauncherImpl): com.santiifm.milou.domain.launcher.GameLauncher = emulatorLauncherImpl
+
+    @Provides
+    @Singleton
+    fun provideMetadataProviders(
+        igdb: com.santiifm.milou.data.service.scraper.IGDBProvider,
+        screenScraper: com.santiifm.milou.data.service.scraper.ScreenScraperProvider
+    ): List<com.santiifm.milou.domain.scraper.MetadataProvider> = listOf(screenScraper, igdb)
 }

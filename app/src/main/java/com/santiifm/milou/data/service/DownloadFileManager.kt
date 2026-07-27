@@ -7,7 +7,7 @@ import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
 import com.santiifm.milou.data.local.entity.DownloadableFileEntity
 import com.santiifm.milou.data.model.DownloadItemModel
-import com.santiifm.milou.data.model.DownloadStatus
+import com.santiifm.milou.domain.model.DownloadStatus
 import com.santiifm.milou.data.repository.ConsoleRepository
 import com.santiifm.milou.data.repository.SettingsRepository
 import com.santiifm.milou.util.ConsoleFormatter
@@ -27,8 +27,9 @@ class DownloadFileManager @Inject constructor(
     private val consoleRepository: ConsoleRepository
 ) {
 
-    fun createDownloadItem(file: DownloadableFileEntity): DownloadItemModel {
+    fun createDownloadItem(id: String, file: DownloadableFileEntity): DownloadItemModel {
         return DownloadItemModel(
+            id = id,
             name = file.name,
             fileName = file.fileName,
             downloadSpeed = 0f,

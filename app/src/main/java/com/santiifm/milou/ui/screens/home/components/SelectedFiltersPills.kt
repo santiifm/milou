@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.santiifm.milou.domain.model.FilterMode
 import com.santiifm.milou.ui.theme.LightningBlue
 import com.santiifm.milou.ui.theme.NeonRed
 import com.santiifm.milou.ui.theme.WarmOrange
@@ -28,7 +29,7 @@ import com.santiifm.milou.ui.theme.WarmOrange
 fun SelectedFiltersPills(
     selectedConsoles: Set<String>,
     selectedTags: Set<String>,
-    tagFilterMode: com.santiifm.milou.ui.screens.home.FilterMode,
+    tagFilterMode: FilterMode,
     getConsoleName: (String) -> String,
     onRemoveConsole: (String) -> Unit,
     onRemoveTag: (String) -> Unit,

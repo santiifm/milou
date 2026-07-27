@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        ".\\gradlew.bat": true,
+        "git add": true,
+        "git commit": true,
+        "Test-Path": true
+    }
+}
